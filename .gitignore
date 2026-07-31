@@ -1,0 +1,55 @@
+# Private task/runtime state
+.codex/
+work/
+library/
+incoming/
+reports/
+
+# Generated media and artifacts
+*.mp3
+*.mp4
+*.m4a
+*.aac
+*.wav
+*.mov
+*.webm
+*.mkv
+*.ts
+*.har
+*.part
+*.download
+*.decrypting
+
+# Keep the source helpers nested under outputs/
+outputs/*
+!outputs/__init__.py
+!outputs/authorized_fetchers/
+!outputs/authorized_fetchers/**
+
+# Credentials and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.mobileprovision
+
+# Python/macOS/editor output
+__pycache__/
+*.py[cod]
+.Python
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.DS_Store
+*.swp
+*~
+
+# Compiled helpers and package output
+dist/
+build/
+*.egg-info/
+bin/

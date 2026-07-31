@@ -1,0 +1,4 @@
+# imageio-ffmpeg 0.6.0, official PyPI macOS wheels only.
+imageio-ffmpeg==0.6.0 \
+    --hash=sha256:9d2baaf867088508d4a3458e61eeb30e945c4ad8016025545f66c4b5aaef0a61 \
+    --hash=sha256:b1ae3173414b5fc5f538a726c4e48ea97edc0d2cdc11f103afee655c463fa742

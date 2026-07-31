@@ -1,0 +1,26 @@
+name: clean-source-and-tests
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  macos:
+    runs-on: macos-14
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install pinned local media dependency
+        run: |
+          python -m venv work/venv
+          work/venv/bin/python -m pip install --disable-pip-version-check \
+            --require-hashes -r requirements-macos.txt
+          echo "FFMPEG=$(work/venv/bin/python -c 'import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())')" >> "$GITHUB_ENV"
+      - name: Run clean-source and offline regression gate
+        run: python scripts/release_check.py
