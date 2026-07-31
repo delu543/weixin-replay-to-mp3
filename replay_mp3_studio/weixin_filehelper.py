@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
+from .config import WORK_ROOT
+
 
 FILE_TRANSFER_ASSISTANT_NAME = "文件传输助手"
 FILEHELPER_ICON_SIGNATURE = "green_filetransfer_icon_v1"
@@ -401,7 +403,7 @@ def _region_arg(region: tuple[int, int, int, int]) -> str:
 
 
 def _ensure_image_crop() -> Path:
-    tool = PROJECT_ROOT / "work" / "image_crop"
+    tool = WORK_ROOT / "helper-tools" / "image_crop"
     source = PROJECT_ROOT / "tools" / "image_crop.swift"
     if not source.exists():
         raise RuntimeError("Image crop helper is missing.")
@@ -470,7 +472,7 @@ def _capture_screen_region(region: tuple[int, int, int, int], image: Path, *, ti
 
 
 def _ensure_window_capture_state() -> Path:
-    tool = PROJECT_ROOT / "work" / "window_capture_state"
+    tool = WORK_ROOT / "helper-tools" / "window_capture_state"
     source = PROJECT_ROOT / "tools" / "window_capture_state.swift"
     if not source.exists():
         raise RuntimeError("Window capture-state helper is missing.")
@@ -532,7 +534,7 @@ def require_weixin_window_capture_visible(window: dict[str, Any], *, timeout: in
 
 
 def _ensure_vision_ocr() -> Path:
-    tool = PROJECT_ROOT / "work" / "vision_ocr"
+    tool = WORK_ROOT / "helper-tools" / "vision_ocr"
     if tool.exists():
         return tool
     source = PROJECT_ROOT / "tools" / "vision_ocr.swift"
@@ -680,7 +682,7 @@ def filehelper_green_icon_probe_passes(payload: dict[str, Any]) -> bool:
 
 
 def _ensure_green_icon_probe() -> Path:
-    tool = PROJECT_ROOT / "work" / "green_icon_probe"
+    tool = WORK_ROOT / "helper-tools" / "green_icon_probe"
     source = PROJECT_ROOT / "tools" / "green_icon_probe.swift"
     if not source.exists():
         raise RuntimeError("File Transfer Assistant green icon probe helper is missing.")
@@ -985,7 +987,7 @@ def _click_screen_point(
 
 
 def _ensure_sck_display_exact_text() -> Path:
-    tool = PROJECT_ROOT / "work" / "sck_display_exact_text"
+    tool = WORK_ROOT / "helper-tools" / "sck_display_exact_text"
     source = PROJECT_ROOT / "tools" / "sck_display_exact_text.swift"
     if not source.exists():
         raise RuntimeError("ScreenCaptureKit exact-text helper is missing.")
@@ -1075,7 +1077,7 @@ def display_exact_text_click_point(
 
 
 def _ensure_macos_scroll() -> Path:
-    tool = PROJECT_ROOT / "work" / "macos_scroll"
+    tool = WORK_ROOT / "helper-tools" / "macos_scroll"
     if tool.exists():
         return tool
     source = PROJECT_ROOT / "tools" / "macos_scroll.swift"
@@ -1627,7 +1629,7 @@ def _window_geometry_from_payload(payload: dict[str, Any]) -> dict[str, int]:
 
 
 def _ensure_macos_click() -> Path:
-    tool = PROJECT_ROOT / "work" / "macos_click"
+    tool = WORK_ROOT / "helper-tools" / "macos_click"
     if tool.exists():
         return tool
     source = PROJECT_ROOT / "tools" / "macos_click.swift"

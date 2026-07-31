@@ -3,10 +3,15 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from .user_storage import ensure_private_dir, user_data_root
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-LIBRARY_ROOT = Path(os.environ.get("REPLAY_MP3_LIBRARY", PROJECT_ROOT / "library")).expanduser().resolve()
-WORK_ROOT = PROJECT_ROOT / "work"
+USER_DATA_ROOT = user_data_root()
+LIBRARY_ROOT_OVERRIDE = str(os.environ.get("REPLAY_MP3_LIBRARY") or "").strip()
+WORK_ROOT_OVERRIDE = str(os.environ.get("REPLAY_MP3_WORK_ROOT") or "").strip()
+LIBRARY_ROOT = Path(LIBRARY_ROOT_OVERRIDE or USER_DATA_ROOT / "library").expanduser().resolve()
+WORK_ROOT = Path(WORK_ROOT_OVERRIDE or USER_DATA_ROOT / "studio-work").expanduser().resolve()
 AUTHORIZED_FETCHERS = PROJECT_ROOT / "outputs" / "authorized_fetchers"
 STATIC_ROOT = Path(__file__).resolve().parent / "static"
 
@@ -41,7 +46,18 @@ def platform_folder(platform: str) -> Path:
 
 
 def ensure_layout() -> None:
-    LIBRARY_ROOT.mkdir(parents=True, exist_ok=True)
-    WORK_ROOT.mkdir(parents=True, exist_ok=True)
+    ensure_private_dir(USER_DATA_ROOT)
+    if LIBRARY_ROOT_OVERRIDE:
+        LIBRARY_ROOT.mkdir(parents=True, exist_ok=True, mode=0o700)
+    else:
+        ensure_private_dir(LIBRARY_ROOT)
+    if WORK_ROOT_OVERRIDE:
+        WORK_ROOT.mkdir(parents=True, exist_ok=True, mode=0o700)
+    else:
+        ensure_private_dir(WORK_ROOT)
     for name in PLATFORMS:
-        platform_folder(name).mkdir(parents=True, exist_ok=True)
+        folder = platform_folder(name)
+        if LIBRARY_ROOT_OVERRIDE:
+            folder.mkdir(parents=True, exist_ok=True, mode=0o700)
+        else:
+            ensure_private_dir(folder)

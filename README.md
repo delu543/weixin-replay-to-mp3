@@ -23,11 +23,39 @@ https://weixin.qq.com/sph/<视频短链接 ID>
 Codex 会返回最终文件路径、大小和时长。默认文件保存在：
 
 ```text
-~/Downloads/WeixinReplayMP3/weixin_<短链接 ID>.mp3
+~/Downloads/WeixinReplayMP3/<本地隔离命名空间>/weixin_<短链接 ID>.mp3
 ```
 
 同一链接再次发送时会先完整解码验证现有 MP3；验证通过就直接复用，不会再次操作
-微信、重复下载或二次转码。中途断开时，目标绑定的抓取和分片下载状态也会继续使用。
+微信、重复下载或二次转码。复用只发生在当前用户的隔离命名空间内；中途断开时，
+也只会继续使用当前命名空间内、与目标绑定的抓取和分片下载状态。
+
+## 用户数据隔离
+
+这个项目没有共享服务器，也不会把运行数据写回 GitHub。默认隔离键由当前 macOS
+账户、本机 Home 目录和本工具的本地 profile 共同生成；目录名只包含短哈希，不直接
+包含原始用户名或 profile 名：
+
+```text
+~/Library/Application Support/WeixinReplayToMP3/data/profiles/<隔离命名空间>/
+~/Downloads/WeixinReplayMP3/<隔离命名空间>/
+```
+
+- 不同电脑、不同 macOS 账户默认不会共享状态、分片、解密材料或 MP3；
+- 直接从 GitHub 检出的源码运行，也不会再把私有数据写进仓库的 `work/`；
+- 私有目录使用 `0700`，运行时使用 `077` umask；
+- profile 名会先验证再哈希，不能用 `../` 或绝对路径逃逸；
+- v0.1.0 的旧输出和旧 `runtime/work/` 会原样保留，但新版不会自动跨命名空间读取。
+
+如果同一个 macOS 登录账户确实需要区分多个本地存储 profile，可以显式使用：
+
+```bash
+python3 "$HOME/Library/Application Support/WeixinReplayToMP3/runtime/weixin_replay_cli.py" \
+  run "https://weixin.qq.com/sph/<id>" --profile <本地英文代号>
+```
+
+这只隔离工具文件。由于同一个 macOS 账户仍共享同一微信登录和桌面会话，真正属于不同
+人的安全隔离应使用不同 macOS 账户；工具不会假装能在共享微信会话里识别真实身份。
 
 ## 当前支持范围
 
@@ -127,7 +155,8 @@ python3 "$HOME/Library/Application Support/WeixinReplayToMP3/runtime/weixin_repl
 - 不读取微信聊天/联系人数据库；
 - 不自动读取浏览器 Cookie、Keychain 或账号 token；
 - 不安装抓包证书，不修改系统代理，不运行第三方不透明下载器；
-- 原始签名地址和解密参数只保存在本机私有工作目录，不进入 Git 或普通报告；
+- 原始签名地址和解密参数只保存在当前用户/profile 的本机私有工作目录，不进入 Git
+  或普通报告，也不会被另一个隔离命名空间自动读取；
 - `work/`、输出媒体、截图、缓存和任务状态全部被发布检查排除。
 
 详细边界见 [PRIVACY.md](PRIVACY.md)、[SECURITY.md](SECURITY.md) 和

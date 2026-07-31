@@ -26,6 +26,7 @@ ROOT = Path(__file__).resolve().parents[2]
 SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
+from replay_mp3_studio.config import WORK_ROOT  # noqa: E402
 from replay_mp3_studio.weixin_filehelper import (  # noqa: E402
     open_weixin_filehelper,
     reopen_verified_filehelper_link,
@@ -95,8 +96,8 @@ DELTA_SKIP_PARTS = (
 DELTA_TEXT_SUFFIXES = {".json", ".har", ".txt", ".log", ".html", ".htm", ".xml", ".js"}
 RAW_URL_RE = re.compile(r"https?://[A-Za-z0-9._~:/?#\[\]@!$&()*+,;=%-]{20,}", re.I)
 ENCODED_URL_RE = re.compile(r"https?%3A%2F%2F[A-Za-z0-9._~%:/?#\[\]@!$&()*+,;=%-]{20,}", re.I)
-SENSITIVE_PAIR_ROOT = ROOT / "work" / "sensitive-artifacts" / "weixin-fast-mp3" / "decode-pairs"
-SOURCE_SNAPSHOT_ROOT = ROOT / "work" / "sensitive-artifacts" / "weixin-fast-mp3" / "source-snapshots"
+SENSITIVE_PAIR_ROOT = WORK_ROOT / "sensitive-artifacts" / "weixin-fast-mp3" / "decode-pairs"
+SOURCE_SNAPSHOT_ROOT = WORK_ROOT / "sensitive-artifacts" / "weixin-fast-mp3" / "source-snapshots"
 CHILD_REPORT_NAMES = {
     "marker-scan.json",
     "radium-source.json",

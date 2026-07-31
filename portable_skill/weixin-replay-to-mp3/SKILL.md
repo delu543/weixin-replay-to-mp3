@@ -36,15 +36,22 @@ python3 "$HOME/Library/Application Support/WeixinReplayToMP3/runtime/weixin_repl
   run "<USER_SUPPLIED_WEIXIN_LINK>"
 ```
 
-The default output is stable for the short ID:
+The default output is stable for the short ID inside the current local isolation
+namespace:
 
 ```text
-~/Downloads/WeixinReplayMP3/weixin_<short-id>.mp3
+~/Downloads/WeixinReplayMP3/<opaque-namespace>/weixin_<short-id>.mp3
 ```
 
 That stability is intentional. A valid existing output is fully decoded and reused;
 an invalid existing output is preserved and never overwritten. Target-bound private
-state also resumes a frozen causal increment without reopening WeChat.
+state also resumes a frozen causal increment without reopening WeChat. Never search,
+copy, or reuse another namespace's state.
+
+The default namespace is derived locally from the current macOS account. If the user
+explicitly asks for a separate local profile, add `--profile <validated-name>` and keep
+that same profile for the entire task. A profile separates files, not the shared WeChat
+login; different people should use different macOS accounts for a real security boundary.
 
 ## Duration handling
 

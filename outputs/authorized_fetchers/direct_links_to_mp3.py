@@ -21,15 +21,18 @@ from extract_media_from_artifact import walk as walk_media_urls
 
 
 ROOT = Path(__file__).resolve().parents[2]
-OUTPUTS = ROOT / "outputs"
-WORK_REPORTS = ROOT / "work" / "direct-link-probes"
 sys.path.insert(0, str(ROOT))
 
+from replay_mp3_studio.config import WORK_ROOT  # noqa: E402
+from replay_mp3_studio.user_storage import user_output_root  # noqa: E402
 from replay_mp3_studio.weixin_decode_key import decode_weixin_pair_to_mp3  # noqa: E402
 from replay_mp3_studio.weixin_source_pairs import (  # noqa: E402
     extract_decode_key_pairs_from_text,
     redacted_pair_summary,
 )
+
+OUTPUTS = user_output_root()
+WORK_REPORTS = WORK_ROOT / "direct-link-probes"
 
 DEFAULT_WEIXIN = "https://weixin.qq.com/sph/AtKXhlaKjL"
 DEFAULT_SONGY = "https://webapp.songy.info/#/courses/details?course_id=784"

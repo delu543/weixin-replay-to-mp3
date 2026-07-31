@@ -15,6 +15,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Callable
 
+from .config import WORK_ROOT
 from .utils import find_ffmpeg, now_iso, verify_mp3
 from .weixin_decode_key import decode_weixin_numeric_key_pair_to_mp3, decode_weixin_pair_to_mp3
 from .weixin_vendor_sources import convert_vendor_source_to_mp3
@@ -24,19 +25,19 @@ from .weixin_source_pairs import load_sensitive_pair_artifact, redacted_numeric_
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 AUTHORIZED_FETCHERS = PROJECT_ROOT / "outputs" / "authorized_fetchers"
 VIDEO_AUDIO_EXTRACTOR_ROOT = PROJECT_ROOT / "video-audio-extractor"
-DIRECT_LINK_PROBE_REPORT = PROJECT_ROOT / "work" / "direct-link-probes" / "weixin_direct_link_probe.json"
+DIRECT_LINK_PROBE_REPORT = WORK_ROOT / "direct-link-probes" / "weixin_direct_link_probe.json"
 DEFAULT_AUTO_BLACKBOX_SEGMENT_SECONDS = 600.0
 AUTO_BLACKBOX_SEGMENT_MIN_SOURCE_SECONDS = 1800.0
 WEIXIN_OFFICIAL_BLACKBOX_SPEED_MAX = 3.0
 SOURCE_ARTIFACT_TEXT_SUFFIXES = {".json", ".txt", ".log", ".md", ".html", ".htm", ".xml", ".har"}
 SOURCE_ARTIFACT_MEDIA_SUFFIXES = {".mp4", ".flv", ".m4a", ".mp3", ".mov", ".webm", ".m3u8", ".aac", ".wav"}
 DEFAULT_SOURCE_ARTIFACT_ROOTS = (
-    PROJECT_ROOT / "work" / "authorized-source-vault" / "sources",
-    PROJECT_ROOT / "work" / "authorized-source-vault" / "snapshots",
-    PROJECT_ROOT / "work" / "source-listener-inbox",
+    WORK_ROOT / "authorized-source-vault" / "sources",
+    WORK_ROOT / "authorized-source-vault" / "snapshots",
+    WORK_ROOT / "source-listener-inbox",
 )
 WEIXIN_DECRYPT_PROBE_SUCCESS_ROOT = (
-    PROJECT_ROOT / "work" / "sensitive-artifacts" / "weixin-fast-mp3" / "decrypt-probe-successes"
+    WORK_ROOT / "sensitive-artifacts" / "weixin-fast-mp3" / "decrypt-probe-successes"
 )
 
 
@@ -73,7 +74,7 @@ class AutoPipelineOptions:
     output: Path
     report: Path
     mode: str = "auto"
-    work_dir: Path = PROJECT_ROOT / "work" / "fast-pipeline-auto"
+    work_dir: Path = WORK_ROOT / "fast-pipeline-auto"
     source_artifact: Path | None = None
     source_artifact_roots: tuple[Path, ...] = ()
     allow_wechat_ui: bool = False
@@ -3316,7 +3317,7 @@ def run_cli(argv: list[str] | None = None) -> int:
             output=output,
             report=report,
             mode=args.mode,
-            work_dir=Path(args.work_dir).expanduser() if args.work_dir else PROJECT_ROOT / "work" / "fast-pipeline-auto",
+            work_dir=Path(args.work_dir).expanduser() if args.work_dir else WORK_ROOT / "fast-pipeline-auto",
             source_artifact=Path(args.source_artifact).expanduser() if args.source_artifact else None,
             source_artifact_roots=cli_source_artifact_roots,
             allow_wechat_ui=args.allow_wechat_ui,

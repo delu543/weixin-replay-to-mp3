@@ -13,6 +13,7 @@ This map separates implemented code, real-machine evidence, and portability.
 | Resumable source download | active | Eight bounded range workers, per-span checksums, resume only missing/invalid spans, verify declared final byte count | Real large-source runs plus range tests |
 | MP3 conversion and verification | active | FFmpeg conversion followed by full decode; no completion claim from file existence alone | Real outputs plus tests |
 | Same-link reuse/resume | active | Fixed short-ID output and target-bound private run state; valid output skips UI/download, frozen causal capture resumes conversion | Pipeline-state tests and current-machine rerun |
+| Per-user data isolation | active | Opaque namespace binds local macOS principal + validated optional profile; output, checkpoints, source evidence, helpers, and Studio work stay outside the repository in private directories | Isolation/path/permission tests |
 | Optional source/provider route | active when user configures it | Environment variable names only; never print or commit values; reports redact signed URLs and keys | Sanitization and provider tests |
 | Automatic dependency install | active | Runs only after a user asks to install/use; user-local venv; pinned `imageio-ffmpeg` hashes; no root | Bootstrap tests |
 | Windows/Linux desktop WeChat automation | not implemented | Must not be advertised as supported | Platform doctor fails closed |
@@ -28,6 +29,10 @@ This map separates implemented code, real-machine evidence, and portability.
 5. Freeze the causal increment, prove the encrypted MP4 candidate, download with
    resume, decrypt the prefix, convert to MP3, and full-decode verify.
 6. Return the exact MP3 path, duration, source byte count, and route evidence.
+
+All steps above run inside one local storage namespace. A different namespace cannot
+reuse its output or target checkpoint. There is no shared service or Git-backed runtime
+state.
 
 ## Changed or intentionally excluded from the source workspace
 

@@ -592,7 +592,7 @@ def open_weixin_target(
     if selected_method not in {"scheme", "weixin_scheme", "packet", "open_packet"}:
         raise RuntimeError(f"Unsupported Weixin open method: {selected_method}")
     if output_dir is None:
-        output_dir = PROJECT_ROOT / "library" / "weixin" / "_open_packets" / f"{timestamp_slug()}-{parse_weixin_short_uri(url)}"
+        output_dir = LIBRARY_ROOT / "weixin" / "_open_packets" / f"{timestamp_slug()}-{parse_weixin_short_uri(url)}"
     packet_info = generate_weixin_open_packet(url, output_dir, log)
     scheme = packet_info["packet"].get("weixin_scheme") or url
     subprocess.run(

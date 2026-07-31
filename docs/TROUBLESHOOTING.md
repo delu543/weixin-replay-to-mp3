@@ -62,3 +62,14 @@ user-private venv. If using a system ffmpeg, set `FFMPEG` to its exact executabl
 
 The same repository task can run `weixin_replay_cli.py` directly after installation.
 For new Codex tasks, restart Codex once so it reloads user-level Skills.
+
+## The same Mac is used by more than one person
+
+Use separate macOS accounts for a real security boundary because the WeChat login and
+desktop UI belong to the macOS session. If one person only needs separate local tool
+workspaces inside their own account, pass the same validated `--profile <name>` on each
+run. Different profiles never reuse each other's MP3 or resumable state.
+
+Do not point `WEIXIN_REPLAY_DATA_ROOT`, `WEIXIN_REPLAY_OUTPUT_ROOT`,
+`REPLAY_MP3_LIBRARY`, `REPLAY_MP3_WORK_ROOT`, or an explicit `--output` at a shared
+directory unless sharing is an intentional user decision.

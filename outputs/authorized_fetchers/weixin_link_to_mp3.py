@@ -12,14 +12,17 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
+from replay_mp3_studio.config import WORK_ROOT  # noqa: E402
 from replay_mp3_studio.extractors import run_weixin_link  # noqa: E402
+from replay_mp3_studio.user_storage import ensure_private_dir, user_output_root  # noqa: E402
 from replay_mp3_studio.utils import verify_mp3  # noqa: E402
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("url", help="Weixin Channels short link, for example https://weixin.qq.com/sph/AHCIZNAGQb")
-    parser.add_argument("--output", default=str(ROOT / "outputs" / "weixin_video_channel.mp3"))
+    default_output = str(user_output_root() / "weixin_video_channel.mp3")
+    parser.add_argument("--output", default=default_output)
     parser.add_argument("--artifact-dir", default="")
     parser.add_argument("--duration", type=int, default=300)
     parser.add_argument("--watch-current", action="store_true", help="Do not reopen WeChat; inspect the current playing session.")
@@ -30,9 +33,13 @@ def main() -> int:
     artifact_dir = (
         Path(args.artifact_dir).expanduser().resolve()
         if args.artifact_dir
-        else ROOT / "work" / "sensitive-artifacts" / "weixin-link-runs" / time.strftime("%Y%m%d-%H%M%S")
+        else WORK_ROOT / "sensitive-artifacts" / "weixin-link-runs" / time.strftime("%Y%m%d-%H%M%S")
     )
-    artifact_dir.mkdir(parents=True, exist_ok=True)
+    ensure_private_dir(artifact_dir)
+    if args.output == default_output:
+        ensure_private_dir(output.parent)
+    else:
+        output.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
 
     def log(message: str) -> None:
         print(message, flush=True)

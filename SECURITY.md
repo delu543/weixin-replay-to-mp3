@@ -7,6 +7,8 @@
 - Causal, bounded runtime-file observation after exact-link playback proof.
 - Prefix decryption proof before a full download and full decode before completion.
 - User-local installation with no root privileges.
+- Opaque per-user/profile storage namespace, private-directory mode `0700`, and process
+  umask `077` for newly created runtime files.
 
 ## Explicitly excluded
 
@@ -16,6 +18,8 @@
 - Chat/contact database reads or credential extraction.
 - Opaque third-party downloader executables.
 - Silent remote upload or telemetry.
+- Cross-user reuse of another namespace's outputs, checkpoints, signed URLs, or decode
+  material.
 
 ## Credentials
 
@@ -39,3 +43,8 @@ This is source tooling, not a signed or notarized consumer app. macOS permission
 official WeChat UI changes, CDN behavior, and platform policy can change. The target
 gates are designed to stop safely when evidence is missing; they cannot guarantee that
 every external link remains extractable forever.
+
+One macOS login is one operating-system security principal and one visible WeChat
+desktop session. `--profile` provides file separation inside that login, but it is not
+an authentication boundary. Use separate macOS accounts when different people must not
+share WeChat credentials or UI state.
