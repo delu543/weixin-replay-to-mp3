@@ -32,6 +32,21 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+      - name: Check zero-prerequisite Windows bootstrap entry
+        shell: pwsh
+        run: |
+          $local = powershell.exe -NoProfile -ExecutionPolicy Bypass `
+            -File .\install-windows.ps1 -CheckOnly | ConvertFrom-Json
+          if ($local.status -ne "checked" -or $local.platform -ne "Windows") {
+            throw "Local Windows installer check failed"
+          }
+          $standalone = Join-Path $env:RUNNER_TEMP "install-windows.ps1"
+          Copy-Item .\install-windows.ps1 $standalone
+          $remote = powershell.exe -NoProfile -ExecutionPolicy Bypass `
+            -File $standalone -CheckOnly | ConvertFrom-Json
+          if ($remote.source_strategy -ne "github_archive_without_git" -or $remote.git_required) {
+            throw "Git-free Windows installer check failed"
+          }
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"

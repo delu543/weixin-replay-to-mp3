@@ -208,6 +208,30 @@ class PublicPackageTests(unittest.TestCase):
                 self.assertFalse((runtime / ".codex").exists())
                 self.assertFalse((runtime / "tests").exists())
 
+    def test_windows_zero_prerequisite_installer_is_safe_and_git_optional(self) -> None:
+        script = (bootstrap.SOURCE_ROOT / "install-windows.ps1").read_text(encoding="utf-8")
+        self.assertIn("Python.Python.3.12", script)
+        self.assertIn("github_archive_without_git", script)
+        self.assertIn('git_required = $false', script)
+        self.assertIn('"scripts\\bootstrap.py"', script)
+        self.assertIn('"install"', script)
+        self.assertIn('"doctor"', script)
+        self.assertNotIn("Set-ExecutionPolicy", script)
+        self.assertNotIn("Remove-Item", script)
+
+    def test_windows_onboarding_recovers_instead_of_reporting_macos_only(self) -> None:
+        agents = (bootstrap.SOURCE_ROOT / "AGENTS.md").read_text(encoding="utf-8")
+        readme = (bootstrap.SOURCE_ROOT / "README.md").read_text(encoding="utf-8")
+        troubleshooting = (bootstrap.SOURCE_ROOT / "docs" / "TROUBLESHOOTING.md").read_text(
+            encoding="utf-8"
+        )
+        for text in (agents, readme, troubleshooting):
+            self.assertIn("install-windows.ps1", text)
+            self.assertIn("githubusercontent.com/delu543/weixin-replay-to-mp3/main", text)
+        self.assertIn("不需要预先安装 Python、FFmpeg 或 Git", readme)
+        self.assertIn("not for a native Windows agent", troubleshooting)
+        self.assertIn("not evidence that Windows is unsupported", troubleshooting)
+
     def test_requirements_pin_both_macos_wheel_hashes(self) -> None:
         text = (bootstrap.SOURCE_ROOT / "requirements-macos.txt").read_text(encoding="utf-8")
         self.assertIn("imageio-ffmpeg==0.6.0", text)

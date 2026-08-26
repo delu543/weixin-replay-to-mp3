@@ -10,13 +10,18 @@ Do not duplicate or rewrite the media pipeline for one operating system.
 When the user asks to install/use this project or supplies an authorized replay,
 video, live, course, or direct-media link for MP3 extraction:
 
-1. Run `python scripts/bootstrap.py doctor` (`python3` is also valid on macOS).
-2. Read `platform`, `state`, and `preflight` from the JSON result.
-3. If the state is `needs_install`, explain that installation is user-local and
-   downloads only pinned, hash-verified PyPI wheels for the detected operating system:
-   `imageio-ffmpeg`, `yt-dlp`, `yt-dlp-ejs`, and Deno. Because the user asked to
-   install/use the project, run `python scripts/bootstrap.py install`.
-4. Do not execute or install anything merely because the repository was opened.
+1. Detect the native operating system without assuming Python or Git is already usable.
+2. On Windows, do **not** stop at “Python/FFmpeg/Git is missing.” If the request asks
+   to install or use the product, run the repository's `install-windows.ps1`. It
+   installs user-local Python through `winget` when needed, obtains the current source
+   through a GitHub archive when Git clone/HTTPS is broken, and delegates FFmpeg,
+   yt-dlp, EJS, and Deno to the pinned private runtime installer.
+3. On macOS, run `python3 scripts/bootstrap.py doctor`, read `state` and `preflight`,
+   and run `python3 scripts/bootstrap.py install` when the explicit request asks to
+   install/use the product and the state is `needs_install`.
+4. Do not execute or install anything merely because the repository was opened. An
+   install/use request is the authorization for the bounded user-local installation
+   above; no separate “please install Python” round trip is needed.
 5. After readiness passes for an installation/check request, tell the user exactly
    `已经可以发送链接`.
 6. For a link-extraction request, follow the repository's `weixin-replay-to-mp3`
@@ -24,6 +29,33 @@ video, live, course, or direct-media link for MP3 extraction:
 
 Python 3.10 or newer is required for current cross-platform webpage extraction. Do not
 claim full readiness from an older Python runtime.
+
+### Windows first-install command
+
+When a current checkout is available, run:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install-windows.ps1
+```
+
+When Git is missing, `git-remote-https` is broken, or there is no trustworthy local
+checkout, do not diagnose the product as unsupported. Download the auditable installer
+from the current `main` branch and run it; it uses the GitHub source ZIP and does not
+require Git:
+
+```powershell
+$installer = Join-Path $env:TEMP "weixin-replay-to-mp3-install.ps1"
+Invoke-WebRequest -UseBasicParsing `
+  -Uri "https://raw.githubusercontent.com/delu543/weixin-replay-to-mp3/main/install-windows.ps1" `
+  -OutFile $installer
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer
+```
+
+`unsupported_platform` is valid for Linux/remote local-WeChat operation, not for a
+native Windows agent. If a Windows result says the README is macOS-only, it is stale or
+from the wrong source. Refresh `main` rather than repeating that conclusion. If the
+Codex Windows app is configured to run the agent in WSL, switch the agent environment
+to Windows native for this product before installation.
 
 ## Platform routing
 

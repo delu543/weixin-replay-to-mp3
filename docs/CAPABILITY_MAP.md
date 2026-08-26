@@ -20,7 +20,8 @@ This map separates implemented code, real-machine evidence, and portability.
 | Authorized local media conversion | active | active | `convert-file` preserves an existing output and requires full decode before completion |
 | Same-link reuse/resume | active | active | Fixed short-ID output and target-bound private run state; pipeline-state tests |
 | Per-user data isolation | active | active | Opaque namespace binds local OS principal + validated profile; macOS modes and Windows LocalAppData/NTFS account boundary |
-| Automatic dependency install | active | active | User-requested only; Python 3.10+ user-local venv; platform-specific pinned `imageio-ffmpeg`, yt-dlp, EJS, and Deno hashes; no root/admin |
+| First-time prerequisite recovery | Python must already exist | active | Windows PowerShell entry discovers or installs user-local Python 3.12 through winget and can obtain the current source ZIP without Git; check-only Windows CI coverage |
+| Automatic dependency install | active | active | User-requested only; Python 3.10+ user-local venv; platform-specific pinned `imageio-ffmpeg`, yt-dlp, EJS, and Deno hashes; no separate system FFmpeg |
 | Explicit audio-recording fallback | ScreenCaptureKit/AVFoundation | DirectShow device selected by user | Last resort only; never install/enable a driver; implementation tests, Windows real-device validation pending |
 | Windows automatic WeChat UI control | n/a | not implemented | Must not be advertised; a missing adapter stops before sending or scanning |
 | Linux/local cloud WeChat control | not implemented | not implemented | Unsupported platform fails closed |
@@ -75,6 +76,10 @@ checkpoint. There is no shared service or Git-backed runtime state.
   run evidence.
 - Windows path selection, installer, safe-stop/manual routing, DirectShow command
   construction, and shared media core have offline tests and Windows CI coverage.
+- Windows CI parses and runs `install-windows.ps1 -CheckOnly`; static release tests
+  require the Git-free archive path, user-local Python installer, and delegation to the
+  pinned Python bootstrap. Real winget installation remains a first-machine operation,
+  because CI already starts with Python installed.
 - macOS and Windows CI install the same pinned yt-dlp/EJS/Deno surface and offline
   tests prove that YouTube, X/Twitter, Xiaohongshu, Songy, and generic URLs select the
   same non-WeChat routes. CI does not guarantee a particular external URL remains

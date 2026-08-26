@@ -1,17 +1,41 @@
 # Troubleshooting
 
-## `unsupported_platform`
+## Windows 上出现 `unsupported_platform` 或“只支持 macOS”
 
-Local WeChat operation supports macOS and Windows. Linux and remote/cloud environments
-fail closed. Run `python scripts/bootstrap.py doctor` and read the reported platform.
+Current `main` supports native macOS and Windows. `unsupported_platform` is expected
+for Linux/remote local-WeChat operation, not for a native Windows agent. A Windows
+report that says README is macOS-only came from stale/wrong source or from running the
+agent inside WSL/Linux.
+
+1. In the ChatGPT/Codex Windows settings, use the Windows-native agent for this tool.
+2. Refresh the current GitHub `main`; do not rely on a cached README.
+3. Run `install-windows.ps1`. Missing Python, FFmpeg, or a Git HTTPS helper is an
+   installation condition, not evidence that Windows is unsupported.
+
+When Git clone reports a missing HTTPS remote helper, download and run the installer
+without Git:
+
+```powershell
+$installer = Join-Path $env:TEMP "weixin-replay-to-mp3-install.ps1"
+Invoke-WebRequest -UseBasicParsing `
+  -Uri "https://raw.githubusercontent.com/delu543/weixin-replay-to-mp3/main/install-windows.ps1" `
+  -OutFile $installer
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer
+```
+
+The installer discovers or installs user-local Python, downloads the GitHub source ZIP
+when needed, then installs pinned FFmpeg and web tools in its private venv. Codex should
+continue through the post-install readiness check instead of stopping after listing
+missing dependencies.
 
 Full Xiaohongshu/YouTube/X/Twitter/generic webpage support requires Python 3.10 or
 newer. An older Python runtime is not full product readiness.
 
 ## YouTube, X/Twitter, or another webpage fails
 
-Run `python scripts/bootstrap.py doctor` and check `web_link_ready`, `yt_dlp_ready`,
-and `javascript_runtime_ready`. The installer provides pinned yt-dlp, local EJS assets,
+On Windows, run `install-windows.ps1 -CheckOnly`; on macOS, run
+`python3 scripts/bootstrap.py doctor`. Check `web_link_ready`, `yt_dlp_ready`, and
+`javascript_runtime_ready`. The installer provides pinned yt-dlp, local EJS assets,
 and Deno in the private venv on both macOS and Windows.
 
 The route does not automatically read browser cookies. A link can still fail because
@@ -115,11 +139,12 @@ or move it yourself after deciding it is not needed.
 
 ## `ffmpeg not found` or web tools are not ready
 
-Run `python scripts/bootstrap.py install`. It installs the pinned wheel for the current
-operating system into a user-local venv, including FFmpeg, yt-dlp, EJS, and Deno. A
-system FFmpeg can instead be supplied through the `FFMPEG` environment variable using
-its exact executable path, but the pinned web tools are still required for full
-multi-platform webpage support.
+On Windows, run `install-windows.ps1`; do not ask the user to install FFmpeg manually.
+On macOS, run `python3 scripts/bootstrap.py install`. Both routes install the pinned
+wheel for the current operating system into a user-local venv, including FFmpeg,
+yt-dlp, EJS, and Deno. A system FFmpeg can instead be supplied through the `FFMPEG`
+environment variable using its exact executable path, but the pinned web tools are
+still required for full multi-platform webpage support.
 
 ## Codex does not recognize the Skill immediately
 

@@ -11,8 +11,10 @@ transcription.
 
 ## Runtime discovery
 
-Run `python scripts/bootstrap.py doctor` when readiness is unclear and use its
-`platform` field. Installed runtimes:
+On macOS, run `python3 scripts/bootstrap.py doctor` when readiness is unclear. On
+Windows, never require Python before entering setup: run the repository's
+`install-windows.ps1 -CheckOnly`, or run `install-windows.ps1` directly when the user
+has asked to install/use the product. Installed runtimes:
 
 - macOS: `~/Library/Application Support/WeixinReplayToMP3/runtime`
 - Windows: `%LOCALAPPDATA%\WeixinReplayToMP3\runtime`
@@ -20,6 +22,13 @@ Run `python scripts/bootstrap.py doctor` when readiness is unclear and use its
 Do not install or run merely because the repository was opened. Full multi-platform
 web-link support requires Python 3.10 or newer. The pinned user-local runtime includes
 FFmpeg, yt-dlp, local EJS assets, and Deno for both macOS and Windows.
+
+If Windows lacks Python, the installer uses `winget` to install user-local Python 3.12
+and continues. If Git clone or its HTTPS remote helper is missing, download the current
+`install-windows.ps1` from the repository's raw `main`; it obtains the GitHub source
+ZIP without Git. Do not stop after merely listing missing Python, FFmpeg, or Git, and
+do not describe native Windows as `unsupported_platform`. If the agent is running in
+WSL/Linux, switch the Codex app's agent environment to Windows native for this tool.
 
 ## Safety boundary
 

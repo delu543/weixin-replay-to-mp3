@@ -3,6 +3,15 @@
 No third-party downloader binary, proxy, certificate, driver, or captured user data is
 bundled in this repository.
 
+## Python on first-time Windows setup
+
+When the user explicitly requests installation and no compatible Python exists, the
+Windows PowerShell entry asks Windows Package Manager to install the user-scope
+`Python.Python.3.12` package. This selects the current maintenance release in the 3.12
+channel; it is not committed to this repository. Python is distributed under the PSF
+License. If `winget` or a user-scope install is unavailable, setup stops instead of
+silently escalating to an administrator installation. See <https://www.python.org/>.
+
 ## imageio-ffmpeg
 
 The installer downloads `imageio-ffmpeg==0.6.0` from PyPI using pinned SHA-256 wheel

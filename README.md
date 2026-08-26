@@ -17,11 +17,15 @@
 
 ## 第一次使用（macOS / Windows）
 
-准备好以下三项即可：
+准备好以下两项即可：
 
 - Codex 桌面版；Windows 用户可参考 [OpenAI 官方 Windows 说明](https://learn.chatgpt.com/docs/windows/windows-app)；
-- Python 3.10 或更高版本；
 - 如果要处理视频号，再准备已登录的官方桌面微信。
+
+Windows 新电脑不需要预先安装 Python、FFmpeg 或 Git。用户明确要求安装本工具后，
+Codex 应运行仓库的 PowerShell 安装入口：缺少 Python 就通过 Windows 自带的 `winget`
+安装到当前用户；FFmpeg、yt-dlp、EJS 和 Deno 随后安装到工具自己的私有环境。Git 克隆
+不可用时改用 GitHub 源码 ZIP，不把 Git 当成产品运行依赖。
 
 第一次，把下面整段发给 Codex：
 
@@ -33,13 +37,19 @@ https://github.com/delu543/weixin-replay-to-mp3
 必须先阅读仓库根目录的 AGENTS.md 和 README.md。识别当前是 macOS 还是 Windows 后，
 按仓库说明完成检查和当前用户安装。
 
+如果 Windows 缺少 Python、FFmpeg 或可用的 Git HTTPS helper，请直接运行仓库提供的
+Windows 安装入口自动补齐或使用 GitHub ZIP；不要仅报告缺少依赖，也不要把 Windows
+误判为 unsupported_platform。
+
 安装并检查通过后，请告诉我“已经可以发送链接”。以后我只发送本人有权处理的视频、
 直播或课程链接，你直接帮我导出 MP3；如果视频号必须手动操作微信，只告诉我最少的
 操作步骤，等我确认播放后继续。
 ```
 
-Codex 会先做只读检查，只有用户明确要求安装或使用后才安装当前系统所需的固定依赖。
-用户不需要自己复制命令。看到“已经可以发送链接”后，首次准备完成。
+Codex 会先识别系统，只有用户明确要求安装或使用后才安装当前系统所需的固定依赖。
+用户不需要自己复制命令。看到“已经可以发送链接”后，首次准备完成。当前版本明确支持
+原生 Windows；如果检查结果说 README 只支持 macOS，说明读取了旧版本或错误来源，应
+刷新 GitHub `main` 后重试。
 
 ## 日常使用：只发链接
 
@@ -84,10 +94,14 @@ Downloads/WeixinReplayMP3/<本地隔离命名空间>/xiaohongshu_<回放 ID>.mp3
 | Windows | 与 macOS 使用同一套平台识别、网页提取、转码和完整解码 | 先试目标绑定来源；需要微信时由用户手动发送、打开并确认播放 |
 | Linux/云端 | 本产品暂不作为支持平台 | 不支持本机微信入口 |
 
-两端都需要：
+两端运行时都需要：
 
 - Python 3.10 或更高版本；
 - 足够空间保存原视频工作文件和最终 MP3。
+
+Windows 安装器会自动准备所需 Python；用户不必先手工安装。Codex 应在 Windows 原生
+PowerShell 环境执行本项目，而不是把 WSL/Linux 的 `unsupported_platform` 结果当成
+Windows 结果。
 
 只有视频号需要已登录的官方桌面微信；只有 macOS 自动微信界面链路需要 Swift Command
 Line Tools 和辅助功能权限。
@@ -137,27 +151,42 @@ Windows：
 
 ## 第一次安装会做什么
 
-Codex 先运行只读检查：
+原生 Windows 有一个不依赖现成 Python 或 Git 的入口。当前源码已在本地时运行：
 
-```text
-python scripts/bootstrap.py doctor
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install-windows.ps1
 ```
 
-用户要求安装或使用后，才会运行：
+如果 Git 克隆失败或报缺少 HTTPS remote helper，Codex 应直接下载当前 `main` 的可审计
+安装脚本；脚本会使用 GitHub 源码 ZIP：
 
-```text
-python scripts/bootstrap.py install
+```powershell
+$installer = Join-Path $env:TEMP "weixin-replay-to-mp3-install.ps1"
+Invoke-WebRequest -UseBasicParsing `
+  -Uri "https://raw.githubusercontent.com/delu543/weixin-replay-to-mp3/main/install-windows.ps1" `
+  -OutFile $installer
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer
 ```
 
-安装器只做三件事：
+macOS 仍使用：
 
-1. 把运行源码复制到当前用户的私有应用目录；
-2. 在私有 venv 中安装固定版本、固定哈希、与当前系统匹配的 `imageio-ffmpeg`、
+```bash
+python3 scripts/bootstrap.py doctor
+python3 scripts/bootstrap.py install
+```
+
+只有用户明确要求安装或使用后才运行安装。Windows 安装入口会：
+
+1. 缺少 Python 3.10+ 时，通过 `winget` 安装当前用户范围的 Python 3.12；
+2. Git 不可用时下载当前 GitHub `main` 源码 ZIP；
+3. 把运行源码复制到当前用户的私有应用目录；
+4. 在私有 venv 中安装固定版本、固定哈希、与当前系统匹配的 `imageio-ffmpeg`、
    `yt-dlp`、`yt-dlp-ejs` 和 Deno；
-3. 安装 `weixin-replay-to-mp3` Codex Skill。
+5. 安装 `weixin-replay-to-mp3` Codex Skill，并再次检查就绪状态。
 
-它不使用 root/管理员权限，不退出微信，不读取聊天，不安装证书，不修改代理，也不会
-因为“打开了 GitHub 仓库”就静默执行。
+它优先使用当前用户范围，不退出微信，不读取聊天，不安装证书，不修改代理，也不会因为
+“打开了 GitHub 仓库”就静默执行。若系统缺少 `winget`，安装器会明确要求先恢复微软的
+App Installer，而不会伪报成功。
 
 ## 为什么这通常不是录一个小时
 
