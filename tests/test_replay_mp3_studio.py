@@ -154,10 +154,24 @@ class ReplayMp3StudioTests(unittest.TestCase):
         self.assertIsNone(content_disposition_for_file(Path("/tmp/final replay.mp3"), download=False))
 
     def test_reveal_path_in_finder_uses_open_reveal(self) -> None:
-        with patch("replay_mp3_studio.server.subprocess.run") as run:
+        with (
+            patch("replay_mp3_studio.server.platform.system", return_value="Darwin"),
+            patch("replay_mp3_studio.server.subprocess.run") as run,
+        ):
             reveal_path_in_finder(Path("/tmp/final replay.mp3"))
 
         run.assert_called_once_with(["open", "-R", "/tmp/final replay.mp3"], check=True)
+
+    def test_reveal_path_in_finder_uses_explorer_on_windows(self) -> None:
+        with (
+            patch("replay_mp3_studio.server.platform.system", return_value="Windows"),
+            patch("replay_mp3_studio.server.subprocess.run") as run,
+        ):
+            reveal_path_in_finder(Path("C:/Users/test/final replay.mp3"))
+
+        run.assert_called_once_with(
+            ["explorer.exe", "/select,C:/Users/test/final replay.mp3"], check=True
+        )
 
     def test_static_ui_exposes_download_reveal_and_clickable_classification(self) -> None:
         app_js = (Path(__file__).resolve().parents[1] / "replay_mp3_studio" / "static" / "app.js").read_text(

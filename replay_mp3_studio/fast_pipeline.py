@@ -1147,7 +1147,7 @@ def source_artifact_roots_from_env(value: str | None = None) -> tuple[Path, ...]
     raw = value if value is not None else os.environ.get("WEIXIN_SOURCE_ARTIFACT_ROOTS", "")
     roots: list[Path] = []
     if raw.strip():
-        for part in raw.split(":"):
+        for part in raw.split(os.pathsep):
             item = part.strip()
             if item:
                 roots.append(Path(item).expanduser())
@@ -2237,7 +2237,7 @@ def _segment_resume_plan(
     work_dir = options.work_dir.expanduser().resolve()
     output_path = output.expanduser().resolve()
     command_template = [
-        "python3",
+        sys.executable,
         "main.py",
         "--url",
         "<same-weixin-url>",

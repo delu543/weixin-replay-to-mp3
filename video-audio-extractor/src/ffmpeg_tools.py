@@ -27,9 +27,14 @@ def find_binary(name: str) -> Optional[str]:
     for root in search_roots:
         if name == "ffmpeg":
             candidates = sorted(
-                (root / "work" / "venv" / "lib").glob(
-                    "python*/site-packages/imageio_ffmpeg/binaries/ffmpeg-*"
-                )
+                [
+                    *(root / "work" / "venv" / "lib").glob(
+                        "python*/site-packages/imageio_ffmpeg/binaries/ffmpeg-*"
+                    ),
+                    *(root / "work" / "venv" / "Lib" / "site-packages").glob(
+                        "imageio_ffmpeg/binaries/ffmpeg-*"
+                    ),
+                ]
             )
             if candidates:
                 return str(candidates[0])

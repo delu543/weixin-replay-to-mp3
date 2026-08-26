@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import json
+import platform
 import re
 import shutil
 import subprocess
 import time
+import webbrowser
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -52,6 +54,40 @@ def build_sck_recorder() -> Path:
 
 def list_avfoundation_devices() -> Dict:
     ffmpeg = require_ffmpeg()
+    selected_system = platform.system()
+    if selected_system == "Windows":
+        proc = subprocess.run(
+            [ffmpeg, "-hide_banner", "-list_devices", "true", "-f", "dshow", "-i", "dummy"],
+            text=True,
+            capture_output=True,
+            timeout=15,
+        )
+        names: List[str] = []
+        for line in proc.stderr.splitlines():
+            match = re.search(r'"([^"]+)"\s*\(audio\)', line)
+            if match and match.group(1) not in names:
+                names.append(match.group(1))
+        return {
+            "platform": selected_system,
+            "capture_backend": "dshow",
+            "ffmpeg": ffmpeg,
+            "raw": proc.stderr,
+            "audio_devices": names,
+            "system_audio_devices": [],
+            "guidance": (
+                "Select an explicit DirectShow loopback input such as Stereo Mix or a user-installed "
+                "virtual audio cable. This tool never installs or enables an audio driver."
+            ),
+        }
+    if selected_system != "Darwin":
+        return {
+            "platform": selected_system,
+            "capture_backend": "unsupported",
+            "ffmpeg": ffmpeg,
+            "raw": "",
+            "audio_devices": [],
+            "system_audio_devices": [],
+        }
     proc = subprocess.run(
         [ffmpeg, "-hide_banner", "-f", "avfoundation", "-list_devices", "true", "-i", ""],
         text=True,
@@ -70,6 +106,8 @@ def list_avfoundation_devices() -> Dict:
         if in_audio and "] [" in line:
             audio_devices.append(line.strip())
     return {
+        "platform": selected_system,
+        "capture_backend": "avfoundation",
         "ffmpeg": ffmpeg,
         "raw": stderr,
         "audio_devices": audio_devices,
@@ -81,6 +119,15 @@ def list_avfoundation_devices() -> Dict:
             }
         ],
     }
+
+
+def _ffmpeg_capture_input(audio_device: str, *, system: str | None = None) -> tuple[list[str], str]:
+    selected_system = system or platform.system()
+    if selected_system == "Windows":
+        return ["-f", "dshow", "-i", f"audio={audio_device}"], "dshow"
+    if selected_system == "Darwin":
+        return ["-f", "avfoundation", "-i", audio_device], "avfoundation"
+    raise RuntimeError("Blackbox audio recording is supported on macOS and Windows only.")
 
 
 def parse_volumedetect(stderr: str) -> Dict:
@@ -120,7 +167,12 @@ def volume_summary(media_path: Path) -> Dict:
 
 
 def capture_probe(audio_device: str, output: Path, seconds: float) -> Dict:
-    use_system_audio = str(audio_device or "").lower() in {"system", "sck", "screencapturekit"}
+    selected_system = platform.system()
+    use_system_audio = selected_system == "Darwin" and str(audio_device or "").lower() in {
+        "system",
+        "sck",
+        "screencapturekit",
+    }
     output.parent.mkdir(parents=True, exist_ok=True)
     if use_system_audio:
         recorder = build_sck_recorder()
@@ -138,15 +190,13 @@ def capture_probe(audio_device: str, output: Path, seconds: float) -> Dict:
         )
     else:
         ffmpeg = require_ffmpeg()
+        input_args, _backend = _ffmpeg_capture_input(audio_device, system=selected_system)
         proc = subprocess.run(
             [
                 ffmpeg,
                 "-hide_banner",
                 "-y",
-                "-f",
-                "avfoundation",
-                "-i",
-                audio_device,
+                *input_args,
                 "-ac",
                 "2",
                 "-ar",
@@ -184,7 +234,11 @@ def wait_for_audio_activity(
     deadline = time.monotonic() + timeout
     attempts: List[Dict] = []
     index = 0
-    use_system_audio = str(audio_device or "").lower() in {"system", "sck", "screencapturekit"}
+    use_system_audio = platform.system() == "Darwin" and str(audio_device or "").lower() in {
+        "system",
+        "sck",
+        "screencapturekit",
+    }
     suffix = ".m4a" if use_system_audio else ".wav"
     print(
         f"Waiting for audible playback before recording "
@@ -245,7 +299,12 @@ def run_blackbox_record(
         raise ValueError("speed must be positive")
     output = Path(out_path).expanduser().resolve()
     output.parent.mkdir(parents=True, exist_ok=True)
-    use_system_audio = str(audio_device or "").lower() in {"system", "sck", "screencapturekit"}
+    selected_system = platform.system()
+    use_system_audio = selected_system == "Darwin" and str(audio_device or "").lower() in {
+        "system",
+        "sck",
+        "screencapturekit",
+    }
     fast_wav = output.with_suffix(".fast.m4a" if use_system_audio else ".fast.wav")
     log_path = output.with_suffix(".blackbox.json")
     ffmpeg = require_ffmpeg()
@@ -273,10 +332,13 @@ def run_blackbox_record(
     for item in devices["audio_devices"]:
         print(f"  {item}")
     if not audio_device:
-        raise RuntimeError("No audio device selected. Re-run with --audio-device ':<index>' after checking the device list.")
+        raise RuntimeError("No audio device selected. List devices first and pass one explicit input name/index.")
 
     if open_url:
-        subprocess.run(["open", url], check=False)
+        if selected_system == "Darwin":
+            subprocess.run(["open", url], check=False)
+        else:
+            webbrowser.open(url)
 
     if duration is None:
         input("Confirm the page is logged in and playing, then press Enter to start recording.")
@@ -384,14 +446,12 @@ def run_blackbox_record(
         print(f"Log: {log_path}")
         return report
 
+    input_args, capture_backend = _ffmpeg_capture_input(audio_device, system=selected_system)
     command = [
         ffmpeg,
         "-hide_banner",
         "-y",
-        "-f",
-        "avfoundation",
-        "-i",
-        audio_device,
+        *input_args,
         "-ac",
         "2",
         "-ar",
@@ -422,7 +482,7 @@ def run_blackbox_record(
     if raw_only:
         report = {
             "tool": "video-audio-extractor blackbox recorder",
-            "capture_backend": "avfoundation",
+            "capture_backend": capture_backend,
             "started_at": started,
             "finished_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
             "url": url,
@@ -452,7 +512,7 @@ def run_blackbox_record(
 
     report = {
         "tool": "video-audio-extractor blackbox recorder",
-        "capture_backend": "avfoundation",
+        "capture_backend": capture_backend,
         "started_at": started,
         "finished_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
         "url": url,

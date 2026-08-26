@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import hashlib
 import os
+import platform
 import re
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Iterator
+
+from .platform_support import application_root as platform_application_root
 
 
 PROFILE_ENV = "WEIXIN_REPLAY_PROFILE"
@@ -40,8 +43,21 @@ def activate_profile(profile: str | None = None) -> str:
 
 def local_principal(home: Path | str | None = None, uid: int | None = None) -> str:
     resolved_home = home_path(home)
-    resolved_uid = int(uid if uid is not None else getattr(os, "getuid", lambda: -1)())
-    return f"uid={resolved_uid}\0home={resolved_home}"
+    if uid is not None or hasattr(os, "getuid"):
+        resolved_uid = int(uid if uid is not None else os.getuid())
+        return f"uid={resolved_uid}\0home={resolved_home}"
+    # Windows has no os.getuid().  The user-profile path is already an OS
+    # boundary; adding the local account label prevents two unusual profiles
+    # that resolve to the same home from receiving the same namespace.
+    account = "\\".join(
+        part
+        for part in (
+            str(os.environ.get("USERDOMAIN") or "").strip(),
+            str(os.environ.get("USERNAME") or "").strip(),
+        )
+        if part
+    )
+    return f"account={account or 'unknown'}\0home={resolved_home}"
 
 
 def storage_namespace(
@@ -59,7 +75,7 @@ def storage_namespace(
 
 
 def application_root(home: Path | str | None = None) -> Path:
-    return home_path(home) / "Library" / "Application Support" / "WeixinReplayToMP3"
+    return platform_application_root(home, system=platform.system())
 
 
 def _base_root(env_name: str, default: Path) -> tuple[Path, bool]:

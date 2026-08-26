@@ -2,11 +2,53 @@
 
 ## `unsupported_platform`
 
-The automatic File Transfer Assistant path is macOS-only. A Windows or Linux adapter
-would need separate official WeChat process/window/runtime implementations; changing a
-path string is not enough.
+Local WeChat operation supports macOS and Windows. Linux and remote/cloud environments
+fail closed. Run `python scripts/bootstrap.py doctor` and read the reported platform.
 
-## Screenshot is white or WeChat is missing from capture
+## Windows reports `Manual playback is required`
+
+This is the expected safe branch when no target-bound local/provider source is already
+available. The repository has no verified Windows WeChat UI adapter and will not guess
+coordinates or send to an unverified chat.
+
+1. Open official Windows WeChat.
+2. Select the chat titled exactly `文件传输助手`.
+3. Send the exact supplied link, open the newest matching message, and start playback.
+4. Stop unrelated WeChat video playback and tell Codex the exact target is playing.
+5. Codex may then rerun the same command with `--manual-playback`.
+
+Do not add that flag before confirmation. The flag authorizes only the bounded recent
+playback/runtime scan; it does not authorize blind UI operations.
+
+## Windows manual playback finds no safe runtime increment
+
+WeChat runtime layouts can differ by version and install location. The tool checks known
+`xwechat/radium` and `RadiumWMPF` locations under AppData. If a read-only inspection
+shows that this installation uses another playback/runtime directory, set PowerShell:
+
+```powershell
+$env:WEIXIN_REPLAY_RUNTIME_ROOTS = "C:\safe\playback-root;D:\another\runtime-root"
+```
+
+Point only to playback/runtime folders. Never use chat, contact, message, cookie,
+history, or account database roots. If no compatible runtime source exists, use
+`convert-file` with a user-authorized local MP4/M4A file.
+
+## Windows last-resort audio recording
+
+This is not the normal path. First list explicit inputs:
+
+```powershell
+python "$env:LOCALAPPDATA\WeixinReplayToMP3\runtime\weixin_replay_cli.py" audio-devices
+```
+
+Windows exposes FFmpeg DirectShow inputs. A usable loopback may be named `Stereo Mix`
+or may come from software the user already installed. The project never installs or
+enables an audio driver. The user must select an exact device, confirm the exact link is
+playing, provide the real playback speed and bounded wall-clock duration, and accept
+that this route is slower than source download.
+
+## macOS screenshot is white or WeChat is missing from capture
 
 Do not relaunch WeChat repeatedly and do not attempt to turn off protection. The runtime
 already treats this as a branch:
@@ -19,56 +61,57 @@ already treats this as a branch:
 
 If the target cannot be proven, the correct result is a safe stop before sending.
 
-## It selected another chat or reports target mismatch
+## macOS selected another chat or reports target mismatch
 
 Do not retry by blindly clicking a row. Keep WeChat open, make `文件传输助手` visible in
-the pinned list, and rerun. The workflow must verify the left name, right header, green
+the pinned list, and rerun. The workflow verifies the left name, right header, green
 icon signature, and newest-message state together. A mismatch is not bypassable.
 
-## The link was sent but no playback proof appeared
+## The link opened but playback proof did not appear
 
-A player window is not enough. The automatic path performs at most two bounded
-metadata-guided canvas activations and requires both WeChatAppEx `Playing audio` and
-`Video Wake Lock` assertions. Check VPN/network state and retry the same link; the exact
-verified message is reused rather than sent again.
+On macOS, a player window is not enough. The automatic route performs bounded
+metadata-guided activation and requires both `Playing audio` and `Video Wake Lock`.
+Check VPN/network state and retry the same link; a verified exact message is reused.
 
-Use `--manual-playback` only after the user explicitly opens and starts that exact link.
+On Windows, confirmation comes from the user because the repository does not claim
+automatic UI proof. Confirm only after the exact newest link visibly starts.
 
-## It found a small MP4 but the video should be longer
+## It found a small MP4 but the replay should be longer
 
-The candidate must be from this run's causal increment and pass MP4-prefix decryption.
-The converter orders verified candidates by declared source bytes and checks the final
+The candidate must come from the target-bound increment and pass MP4-prefix decryption.
+The converter orders verified candidates by declared source bytes and checks final
 download length. If the user knows a reliable floor, add `--min-duration <seconds>`.
-Do not hard-code one hour for all future links.
+Do not hard-code one hour for all links.
 
 ## Download is slow or interrupted
 
 The downloader uses bounded parallel ranges with per-span checksums. Rerun the same
 short link and output path; it resumes only missing or invalid spans. Do not delete the
-target-bound `work/` state or rename a partial download during recovery.
+target-bound work state or rename a partial download during recovery.
 
 ## Existing MP3 is rejected
 
 The file is preserved. The CLI refuses to overwrite an existing output that fails full
-decode or the requested minimum duration. Inspect it, choose an explicit new
-`--output`, or move it yourself after deciding it is not needed.
+decode or the requested minimum duration. Inspect it, choose an explicit new `--output`,
+or move it yourself after deciding it is not needed.
 
 ## `ffmpeg not found`
 
-Run `python3 scripts/bootstrap.py install`. It installs pinned macOS wheels into a
-user-private venv. If using a system ffmpeg, set `FFMPEG` to its exact executable path.
+Run `python scripts/bootstrap.py install`. It installs the pinned wheel for the current
+operating system into a user-local venv. A system FFmpeg can instead be supplied through
+the `FFMPEG` environment variable using its exact executable path.
 
 ## Codex does not recognize the Skill immediately
 
 The same repository task can run `weixin_replay_cli.py` directly after installation.
 For new Codex tasks, restart Codex once so it reloads user-level Skills.
 
-## The same Mac is used by more than one person
+## One computer is used by more than one person
 
-Use separate macOS accounts for a real security boundary because the WeChat login and
-desktop UI belong to the macOS session. If one person only needs separate local tool
-workspaces inside their own account, pass the same validated `--profile <name>` on each
-run. Different profiles never reuse each other's MP3 or resumable state.
+Use separate operating-system accounts for a real security boundary because the
+WeChat login and desktop UI belong to that session. One person may use a validated
+`--profile <name>` for separate local tool workspaces, but profiles do not authenticate
+different people.
 
 Do not point `WEIXIN_REPLAY_DATA_ROOT`, `WEIXIN_REPLAY_OUTPUT_ROOT`,
 `REPLAY_MP3_LIBRARY`, `REPLAY_MP3_WORK_ROOT`, or an explicit `--output` at a shared

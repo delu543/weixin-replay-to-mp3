@@ -80,9 +80,14 @@ def find_ffmpeg() -> str:
     if found:
         return found
     candidates = sorted(
-        (ROOT / "work" / "venv" / "lib").glob(
-            "python*/site-packages/imageio_ffmpeg/binaries/ffmpeg-*"
-        )
+        [
+            *(ROOT / "work" / "venv" / "lib").glob(
+                "python*/site-packages/imageio_ffmpeg/binaries/ffmpeg-*"
+            ),
+            *(ROOT / "work" / "venv" / "Lib" / "site-packages").glob(
+                "imageio_ffmpeg/binaries/ffmpeg-*"
+            ),
+        ]
     )
     if candidates:
         return str(candidates[0])
@@ -90,11 +95,11 @@ def find_ffmpeg() -> str:
 
 
 def safe_rel(path: Path) -> str:
-    text = str(path)
-    home = str(Path.home())
-    if text.startswith(home + "/"):
-        return "~/" + text[len(home) + 1 :]
-    return text
+    try:
+        relative = path.expanduser().resolve().relative_to(Path.home().resolve())
+    except (OSError, ValueError):
+        return str(path)
+    return "~/" + relative.as_posix()
 
 
 def should_skip(path: Path) -> bool:

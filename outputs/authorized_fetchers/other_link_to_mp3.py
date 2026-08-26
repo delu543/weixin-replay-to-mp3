@@ -179,9 +179,14 @@ def find_ffmpeg() -> str:
     if found:
         return found
     candidates = sorted(
-        (ROOT / "work" / "venv" / "lib").glob(
-            "python*/site-packages/imageio_ffmpeg/binaries/ffmpeg-*"
-        )
+        [
+            *(ROOT / "work" / "venv" / "lib").glob(
+                "python*/site-packages/imageio_ffmpeg/binaries/ffmpeg-*"
+            ),
+            *(ROOT / "work" / "venv" / "Lib" / "site-packages").glob(
+                "imageio_ffmpeg/binaries/ffmpeg-*"
+            ),
+        ]
     )
     if candidates:
         return str(candidates[0])

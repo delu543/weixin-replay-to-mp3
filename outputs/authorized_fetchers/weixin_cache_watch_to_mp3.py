@@ -39,9 +39,14 @@ def find_ffmpeg_tool(name: str) -> str:
     if found:
         return found
     candidates = sorted(
-        (ROOT / "work" / "venv" / "lib").glob(
-            f"python*/site-packages/imageio_ffmpeg/binaries/{name}-*"
-        )
+        [
+            *(ROOT / "work" / "venv" / "lib").glob(
+                f"python*/site-packages/imageio_ffmpeg/binaries/{name}-*"
+            ),
+            *(ROOT / "work" / "venv" / "Lib" / "site-packages").glob(
+                f"imageio_ffmpeg/binaries/{name}-*"
+            ),
+        ]
     )
     if candidates:
         return str(candidates[0])

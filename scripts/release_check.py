@@ -120,6 +120,7 @@ def scan() -> dict[str, Any]:
         "SECURITY.md",
         "docs/CAPABILITY_MAP.md",
         "portable_skill/weixin-replay-to-mp3/SKILL.md",
+        "requirements-windows.txt",
         "weixin_replay_cli.py",
     ]
     for name in required:

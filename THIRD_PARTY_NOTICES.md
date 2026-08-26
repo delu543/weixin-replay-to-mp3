@@ -6,15 +6,20 @@ bundled in this repository.
 ## imageio-ffmpeg
 
 The installer downloads `imageio-ffmpeg==0.6.0` from PyPI using pinned SHA-256 wheel
-hashes for macOS arm64 and x86_64. The package is distributed under the BSD 2-Clause
-License. Its bundled ffmpeg executable remains subject to the license configuration of
-that binary. See <https://github.com/imageio/imageio-ffmpeg>.
+hashes for macOS arm64/x86_64 or Windows x86/x86_64, selected by the local platform.
+The package is distributed under the BSD 2-Clause License. Its bundled ffmpeg
+executable remains subject to the license configuration of that binary. See
+<https://github.com/imageio/imageio-ffmpeg>.
 
 ## FFmpeg
 
 FFmpeg is invoked as an external executable for media conversion and full-decode
 verification. This repository does not contain an FFmpeg binary. See
 <https://ffmpeg.org/legal.html>.
+
+On Windows, the explicit recording fallback can address an existing DirectShow audio
+input. The repository does not bundle, install, or enable a loopback/virtual-audio
+driver.
 
 ## ISAAC / ISAAC64
 

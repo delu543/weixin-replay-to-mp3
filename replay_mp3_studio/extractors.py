@@ -39,6 +39,7 @@ from .weixin_pipeline_state import (
     pipeline_phase_completed,
     pipeline_resume_action,
 )
+from .platform_support import weixin_cache_audit_roots, weixin_recent_source_roots
 
 
 XHS_CLIP_API = "https://www.xiaohongshu.com/api/sns/v1/live/dynamic/clip_detail_web"
@@ -51,11 +52,7 @@ WEIXIN_CAUSAL_CAPTURE_CHECKPOINT_SCHEMA = 1
 
 def default_cache_audit_dirs(platform: str, url: str = "") -> list[str]:
     if platform == "weixin":
-        return [
-            str(Path.home() / "Library/Containers/com.tencent.xinWeChat/Data/tmp"),
-            str(Path.home() / "Library/Containers/com.tencent.xinWeChat/Data/Documents/app_data/radium"),
-            str(Path.home() / "Library/Containers/com.tencent.xinWeChat/Data/Documents/app_data/net/cdncomm"),
-        ]
+        return [str(path) for path in weixin_cache_audit_roots()]
     if platform == "third_party" and "songy.info" in url.lower():
         return [str(WORK_ROOT / "studio-profiles" / "songy-mobile")]
     return []
@@ -838,13 +835,7 @@ def run_weixin_post_open_source_vault_artifact(
     return stage
 
 
-WEIXIN_RECENT_SOURCE_ROOTS = (
-    Path.home() / "Library/Containers/com.tencent.xinWeChat/Data/Documents/app_data/radium/web/profiles",
-    Path.home() / "Library/Containers/com.tencent.xinWeChat/Data/Documents/app_data/net/cdncomm",
-    Path.home() / "Library/Containers/com.tencent.xinWeChat/Data/Documents/app_data/net/kvcomm",
-    Path.home() / "Library/Containers/com.tencent.xinWeChat/Data/Documents/app_data/log/radium",
-    Path.home() / "Library/Containers/com.tencent.xinWeChat/Data/Documents/app_data/log/player",
-)
+WEIXIN_RECENT_SOURCE_ROOTS = weixin_recent_source_roots()
 WEIXIN_SENSITIVE_STORE_NAMES = {
     "account web data",
     "cookies",
@@ -879,11 +870,11 @@ def _expand_weixin_report_path(value: object) -> Path:
 
 
 def _safe_relative_path(path: Path) -> str:
-    text = str(path)
-    home = str(Path.home())
-    if text.startswith(home + "/"):
-        return "~/" + text[len(home) + 1 :]
-    return text
+    try:
+        relative = path.expanduser().resolve().relative_to(Path.home().resolve())
+    except (OSError, ValueError):
+        return str(path)
+    return "~/" + relative.as_posix()
 
 
 def _is_weixin_sensitive_store_path(path: Path) -> bool:
@@ -1537,6 +1528,7 @@ def run_weixin_link(
     watch_current_only: bool = False,
     manual_playback: bool = False,
     min_duration: float = 180,
+    desktop_automation_available: bool = True,
 ) -> None:
     mode = "manual_playback" if manual_playback else "watch_current" if watch_current_only else "open_then_watch"
     state_path, pipeline_state = load_or_create_pipeline_state(
@@ -1697,6 +1689,27 @@ def run_weixin_link(
         _write_artifact_json(artifacts, "weixin_link_diagnostics.json", diagnostics)
         log("Weixin direct probe created an MP3.")
         return
+
+    if not desktop_automation_available and not manual_playback:
+        diagnostics["stages"].append(
+            {
+                "name": "desktop_filehelper_automation",
+                "attempted": False,
+                "success": False,
+                "skipped_reason": "platform_requires_user_confirmed_manual_playback",
+            }
+        )
+        diagnostics["summary"] = (
+            "This platform has no verified File Transfer Assistant automation adapter. "
+            "The user must open 文件传输助手, send and open the exact newest link, start real "
+            "playback, explicitly confirm that playback is active, and then rerun with "
+            "--manual-playback. No unbound runtime scan was started."
+        )
+        diag_path = _write_artifact_json(artifacts, "weixin_link_diagnostics.json", diagnostics)
+        raise RuntimeError(
+            "Manual playback is required on this platform; rerun with --manual-playback only "
+            f"after the user confirms the exact link is playing. Diagnostics: {diag_path}"
+        )
 
     if manual_playback:
         manual_stage = run_weixin_manual_playback_capture(

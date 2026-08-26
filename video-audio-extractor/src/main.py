@@ -128,7 +128,11 @@ def build_parser() -> argparse.ArgumentParser:
     blackbox.add_argument("--speed", type=float, default=3)
     blackbox.add_argument("--out", required=True)
     blackbox.add_argument("--duration", type=float, default=None, help="Seconds to record. If omitted, stop manually.")
-    blackbox.add_argument("--audio-device", default="", help="macOS avfoundation audio input, for example ':1'.")
+    blackbox.add_argument(
+        "--audio-device",
+        default="",
+        help="macOS avfoundation input (for example ':1') or Windows DirectShow audio device name.",
+    )
     blackbox.add_argument("--no-open", action="store_true")
     blackbox.add_argument("--keep-fast", action="store_true")
     blackbox.add_argument("--raw-only", action="store_true", help="Only capture the fast recording; skip tempo restoration.")
@@ -142,7 +146,7 @@ def build_parser() -> argparse.ArgumentParser:
     blackbox.add_argument("--audio-probe-seconds", type=float, default=1.5)
     blackbox.set_defaults(func=cmd_blackbox_record)
 
-    devices = sub.add_parser("audio-devices", help="List macOS avfoundation audio input devices for blackbox recording.")
+    devices = sub.add_parser("audio-devices", help="List macOS or Windows audio inputs for blackbox recording.")
     devices.set_defaults(func=cmd_audio_devices)
 
     return parser

@@ -15,12 +15,24 @@ from typing import Any
 
 
 SOURCE_ROOT = Path(__file__).resolve().parents[1]
-APP_ROOT = Path.home() / "Library" / "Application Support" / "WeixinReplayToMP3"
+if str(SOURCE_ROOT) not in sys.path:
+    sys.path.insert(0, str(SOURCE_ROOT))
+
+from replay_mp3_studio.platform_support import SUPPORTED_SYSTEMS, application_root  # noqa: E402
+
+
+APP_ROOT = application_root()
 RUNTIME_ROOT = APP_ROOT / "runtime"
 SKILL_ROOT = Path.home() / ".codex" / "skills" / "weixin-replay-to-mp3"
 MARKER = ".managed-by-weixin-replay-to-mp3"
 COPY_DIRS = ("replay_mp3_studio", "outputs", "tools", "video-audio-extractor")
-COPY_FILES = ("weixin_replay_cli.py", "main.py", "requirements-macos.txt", "VERSION")
+COPY_FILES = (
+    "weixin_replay_cli.py",
+    "main.py",
+    "requirements-macos.txt",
+    "requirements-windows.txt",
+    "VERSION",
+)
 
 
 def version() -> str:
@@ -33,11 +45,31 @@ def owned(path: Path) -> bool:
 
 def installed_ffmpeg() -> str:
     candidates = sorted(
-        (RUNTIME_ROOT / "work" / "venv" / "lib").glob(
-            "python*/site-packages/imageio_ffmpeg/binaries/ffmpeg-*"
-        )
+        [
+            *(RUNTIME_ROOT / "work" / "venv" / "lib").glob(
+                "python*/site-packages/imageio_ffmpeg/binaries/ffmpeg-*"
+            ),
+            *(RUNTIME_ROOT / "work" / "venv" / "Lib" / "site-packages").glob(
+                "imageio_ffmpeg/binaries/ffmpeg-*"
+            ),
+        ]
     )
     return str(candidates[0]) if candidates else ""
+
+
+def venv_python(venv: Path, system: str | None = None) -> Path:
+    return (
+        venv / "Scripts" / "python.exe"
+        if (system or platform.system()) == "Windows"
+        else venv / "bin" / "python"
+    )
+
+
+def requirements_path(system: str | None = None) -> Path:
+    selected = system or platform.system()
+    if selected == "Windows":
+        return RUNTIME_ROOT / "requirements-windows.txt"
+    return RUNTIME_ROOT / "requirements-macos.txt"
 
 
 def run_preflight(root: Path, ffmpeg: str = "") -> dict[str, Any]:
@@ -69,7 +101,8 @@ def doctor_payload() -> dict[str, Any]:
     root = RUNTIME_ROOT if runtime_installed else SOURCE_ROOT
     ffmpeg = installed_ffmpeg() if runtime_installed else ""
     preflight = run_preflight(root, ffmpeg)
-    if platform.system() != "Darwin":
+    selected_system = platform.system()
+    if selected_system not in SUPPORTED_SYSTEMS:
         state = "unsupported_platform"
     elif runtime_installed and skill_installed and preflight.get("ready"):
         state = "ready"
@@ -78,6 +111,7 @@ def doctor_payload() -> dict[str, Any]:
     return {
         "state": state,
         "version": version(),
+        "platform": selected_system,
         "runtime_installed": runtime_installed,
         "skill_installed": skill_installed,
         "runtime_root": str(RUNTIME_ROOT),
@@ -133,7 +167,7 @@ def ensure_ffmpeg(skip_deps: bool) -> str:
     venv = RUNTIME_ROOT / "work" / "venv"
     venv.parent.mkdir(parents=True, exist_ok=True)
     subprocess.run([sys.executable, "-m", "venv", str(venv)], check=True)
-    python = venv / "bin" / "python"
+    python = venv_python(venv)
     subprocess.run(
         [
             str(python),
@@ -143,7 +177,7 @@ def ensure_ffmpeg(skip_deps: bool) -> str:
             "--disable-pip-version-check",
             "--require-hashes",
             "-r",
-            str(RUNTIME_ROOT / "requirements-macos.txt"),
+            str(requirements_path()),
         ],
         check=True,
     )
@@ -168,6 +202,11 @@ def copy_skill() -> None:
 
 
 def tighten_permissions() -> None:
+    if platform.system() == "Windows":
+        # The default root is inside the current user's LocalAppData profile
+        # and inherits that account's NTFS ACL. POSIX modes are not an ACL on
+        # Windows, so do not pretend chmod provides the same boundary.
+        return
     for root in (APP_ROOT, RUNTIME_ROOT, RUNTIME_ROOT / "work"):
         if root.exists():
             root.chmod(0o700)
@@ -177,8 +216,8 @@ def tighten_permissions() -> None:
 
 
 def cmd_install(args: argparse.Namespace) -> int:
-    if platform.system() != "Darwin":
-        raise RuntimeError("Automatic WeChat operation is currently supported on macOS only.")
+    if platform.system() not in SUPPORTED_SYSTEMS:
+        raise RuntimeError("This release supports macOS and Windows local runtimes only.")
     if sys.version_info < (3, 9):
         raise RuntimeError("Python 3.9 or newer is required.")
     copy_runtime()

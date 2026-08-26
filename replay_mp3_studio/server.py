@@ -4,6 +4,7 @@ import argparse
 import html
 import json
 import mimetypes
+import platform
 import socket
 import subprocess
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -33,6 +34,9 @@ def content_disposition_for_file(path: Path, download: bool = False) -> Optional
 
 
 def reveal_path_in_finder(path: Path) -> None:
+    if platform.system() == "Windows":
+        subprocess.run(["explorer.exe", f"/select,{path}"], check=True)
+        return
     subprocess.run(["open", "-R", str(path)], check=True)
 
 

@@ -94,8 +94,9 @@ class PublicPackageTests(unittest.TestCase):
                 layout = user_storage.ensure_profile_layout("primary")
             data_mode = stat.S_IMODE(Path(layout["data_root"]).stat().st_mode)
             output_mode = stat.S_IMODE(Path(layout["output_root"]).stat().st_mode)
-        self.assertEqual(data_mode, 0o700)
-        self.assertEqual(output_mode, 0o700)
+        if os.name != "nt":
+            self.assertEqual(data_mode, 0o700)
+            self.assertEqual(output_mode, 0o700)
 
     def test_explicit_output_does_not_change_existing_parent_permissions(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -104,7 +105,8 @@ class PublicPackageTests(unittest.TestCase):
             parent.chmod(0o755)
             cli.prepare_output_parent(parent / "result.mp3", managed_default=False)
             mode = stat.S_IMODE(parent.stat().st_mode)
-        self.assertEqual(mode, 0o755)
+        if os.name != "nt":
+            self.assertEqual(mode, 0o755)
 
     def test_active_runtime_work_roots_are_outside_source_checkout(self) -> None:
         self.assertTrue(config.WORK_ROOT.is_relative_to(config.USER_DATA_ROOT))
@@ -148,6 +150,7 @@ class PublicPackageTests(unittest.TestCase):
                 bootstrap.copy_runtime()
                 bootstrap.copy_skill()
                 self.assertTrue((runtime / "weixin_replay_cli.py").is_file())
+                self.assertTrue((runtime / "requirements-windows.txt").is_file())
                 self.assertTrue((runtime / "replay_mp3_studio" / "extractors.py").is_file())
                 self.assertTrue((runtime / bootstrap.MARKER).is_file())
                 self.assertTrue((skill / "SKILL.md").is_file())
@@ -156,6 +159,11 @@ class PublicPackageTests(unittest.TestCase):
 
     def test_requirements_pin_both_macos_wheel_hashes(self) -> None:
         text = (bootstrap.SOURCE_ROOT / "requirements-macos.txt").read_text(encoding="utf-8")
+        self.assertIn("imageio-ffmpeg==0.6.0", text)
+        self.assertEqual(text.count("--hash=sha256:"), 2)
+
+    def test_requirements_pin_both_windows_wheel_hashes(self) -> None:
+        text = (bootstrap.SOURCE_ROOT / "requirements-windows.txt").read_text(encoding="utf-8")
         self.assertIn("imageio-ffmpeg==0.6.0", text)
         self.assertEqual(text.count("--hash=sha256:"), 2)
 

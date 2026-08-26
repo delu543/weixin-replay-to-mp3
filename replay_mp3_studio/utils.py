@@ -99,9 +99,14 @@ def find_ffmpeg() -> str:
     if found:
         return found
     candidates = sorted(
-        (PROJECT_ROOT / "work" / "venv" / "lib").glob(
-            "python*/site-packages/imageio_ffmpeg/binaries/ffmpeg-*"
-        )
+        [
+            *(PROJECT_ROOT / "work" / "venv" / "lib").glob(
+                "python*/site-packages/imageio_ffmpeg/binaries/ffmpeg-*"
+            ),
+            *(PROJECT_ROOT / "work" / "venv" / "Lib" / "site-packages").glob(
+                "imageio_ffmpeg/binaries/ffmpeg-*"
+            ),
+        ]
     )
     if candidates:
         return str(candidates[0])
@@ -175,5 +180,9 @@ def verify_mp3(path: Path, log, min_duration_seconds: float = 0) -> dict[str, An
 
 
 def python_executable() -> str:
-    venv_python = PROJECT_ROOT / "work" / "venv" / "bin" / "python"
-    return str(venv_python if venv_python.exists() else Path(sys.executable))
+    candidates = (
+        PROJECT_ROOT / "work" / "venv" / "bin" / "python",
+        PROJECT_ROOT / "work" / "venv" / "Scripts" / "python.exe",
+    )
+    venv_python = next((path for path in candidates if path.exists()), Path(sys.executable))
+    return str(venv_python)

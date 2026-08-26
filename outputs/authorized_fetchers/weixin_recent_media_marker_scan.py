@@ -13,28 +13,37 @@ import json
 import os
 import re
 import subprocess
+import sys
 import time
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
 
 ROOT = Path(__file__).resolve().parents[2]
-SCAN_ROOTS = [
-    Path.home() / "Library/Containers/com.tencent.xinWeChat/Data/Documents/app_data/radium",
-    Path.home() / "Library/Containers/com.tencent.xinWeChat/Data/Documents/app_data/net/cdncomm",
-    Path.home() / "Library/Containers/com.tencent.xinWeChat/Data/Documents/app_data/net/kvcomm",
-    Path.home() / "Library/Containers/com.tencent.xinWeChat/Data/Documents/app_data/log/radium",
-    Path.home() / "Library/Containers/com.tencent.xinWeChat/Data/Documents/app_data/log/player",
-    Path.home() / "Library/Group Containers/5A4RE8SF68.com.tencent.xinWeChat/Library/Caches",
-]
-SKIP_PARTS = (
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from replay_mp3_studio.platform_support import current_system, weixin_marker_scan_roots  # noqa: E402
+
+
+SCAN_ROOTS = list(weixin_marker_scan_roots())
+SKIP_NAMES = {
     "account web data",
+    "chat",
+    "contact",
+    "conversation",
     "cookies",
+    "db_storage",
     "favicons",
     "history",
+    "login data",
+    "message",
+    "msgattach",
+    "session",
     "visited links",
     "web data",
-)
+}
+SKIP_PREFIXES = ("chat_", "chat-", "contact_", "contact-", "message_", "message-")
 MEDIA_MARKERS = (
     "finder.video.qq.com",
     "wxapp.tc.qq.com",
@@ -70,16 +79,19 @@ ENCODED_URL_RE = re.compile(rb"https?%3A%2F%2F[A-Za-z0-9._~%:/?#\[\]@!$&()*+,;=%
 
 
 def safe_rel(path: Path) -> str:
-    text = str(path)
-    home = str(Path.home())
-    if text.startswith(home + "/"):
-        return "~/" + text[len(home) + 1 :]
-    return text
+    try:
+        relative = path.expanduser().resolve().relative_to(Path.home().resolve())
+    except (OSError, ValueError):
+        return str(path)
+    return "~/" + relative.as_posix()
 
 
 def should_skip(path: Path) -> bool:
-    lower = str(path).lower()
-    return any(part in lower for part in SKIP_PARTS)
+    for raw_part in path.parts:
+        part = raw_part.casefold()
+        if part in SKIP_NAMES or part.startswith(SKIP_PREFIXES):
+            return True
+    return False
 
 
 def iter_recent_files(since: float, min_size: int, max_size: int) -> list[Path]:
@@ -165,7 +177,7 @@ def probe_url(url: str, timeout: float = 18) -> dict:
     # Keep probing lightweight and local to ffmpeg. The URL itself remains only
     # in the JSON artifact; console output uses redacted form.
     command = [
-        "python3",
+        sys.executable,
         str(converter),
         "--probe-only-url",
         url,
@@ -215,6 +227,7 @@ def main() -> int:
 
     report = {
         "started_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+        "platform": current_system(),
         "since_minutes": args.since_minutes,
         "roots": [str(root) for root in SCAN_ROOTS if root.exists()],
         "files_with_hits": results,
