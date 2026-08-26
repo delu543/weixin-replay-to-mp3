@@ -142,7 +142,7 @@ def run_tests() -> dict[str, Any]:
     return {
         "exit_code": proc.returncode,
         "stdout_tail": proc.stdout[-2000:],
-        "stderr_tail": proc.stderr[-4000:],
+        "stderr_tail": proc.stderr[-20000:],
     }
 
 

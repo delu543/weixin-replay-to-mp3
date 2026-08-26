@@ -5,6 +5,7 @@ import sys
 import tempfile
 import textwrap
 import unittest
+from unittest import mock
 
 
 SCRIPT = pathlib.Path(__file__).resolve().parents[1] / "outputs" / "authorized_fetchers" / "weixin_current_playback_delta_to_mp3.py"
@@ -44,7 +45,11 @@ class WeixinCurrentDeltaTests(unittest.TestCase):
             """
         )
 
-        records = module.parse_lsof_field_output(output)
+        tmp_root = pathlib.Path(
+            "/Users/test/Library/Containers/com.tencent.xinWeChat/Data/tmp"
+        )
+        with mock.patch.object(module, "WATCH_ROOTS", [tmp_root]):
+            records = module.parse_lsof_field_output(output)
 
         self.assertEqual(len(records), 1)
         self.assertEqual(records[0].pid, "123")

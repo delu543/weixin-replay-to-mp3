@@ -97,7 +97,7 @@ class WeixinCacheWatchTests(unittest.TestCase):
         self.assertLess(source_module.source_score(url), 30)
 
     def test_radium_source_scans_kvcomm_root(self):
-        roots = [str(path) for path in source_module.RADIIUM_ROOTS]
+        roots = [path.as_posix() for path in source_module.RADIIUM_ROOTS]
 
         self.assertTrue(any("/app_data/net/kvcomm" in root for root in roots))
 
