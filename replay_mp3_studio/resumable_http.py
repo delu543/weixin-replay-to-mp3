@@ -238,7 +238,11 @@ def download_by_ranges(
         if actual_identity != expected_identity or part.stat().st_size != expected_size:
             raise RuntimeError("Range checkpoint belongs to a different media source.")
     else:
-        fd = os.open(part, os.O_RDWR | os.O_CREAT | os.O_EXCL, 0o600)
+        fd = os.open(
+            part,
+            os.O_RDWR | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0),
+            0o600,
+        )
         try:
             os.ftruncate(fd, expected_size)
             prefix_bytes = _validated_legacy_prefix(
@@ -299,7 +303,7 @@ def download_by_ranges(
     file_lock = threading.Lock()
     downloaded_bytes = 0
     retry_count = 0
-    fd = os.open(part, os.O_RDWR)
+    fd = os.open(part, os.O_RDWR | getattr(os, "O_BINARY", 0))
 
     def fetch_and_store(span: tuple[int, int]) -> None:
         nonlocal downloaded_bytes, retry_count
