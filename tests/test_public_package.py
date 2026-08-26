@@ -31,6 +31,46 @@ class PublicPackageTests(unittest.TestCase):
             with self.subTest(value=value), self.assertRaises(ValueError):
                 cli.canonical_link(value)
 
+    def test_public_link_classifier_covers_shared_provider_routes(self) -> None:
+        cases = {
+            "https://weixin.qq.com/sph/Abc123": ("weixin", "Abc123"),
+            "https://www.xiaohongshu.com/fe/live-h5/page/live_replay/570?host_id=88": (
+                "xiaohongshu",
+                "570",
+            ),
+            "https://m.xhslink.com/a/ShareCode": (
+                "xiaohongshu",
+                cli._link_hash("https://m.xhslink.com/a/ShareCode"),
+            ),
+            "https://www.youtube.com/live/lDwm-UPILuw?si=tracking": (
+                "youtube",
+                "lDwm-UPILuw",
+            ),
+            "https://x.com/example/status/2091487928124047817?s=20": (
+                "x",
+                "2091487928124047817",
+            ),
+            "https://webapp.songy.info/#/courses/details?course_id=784": ("songy", "784"),
+        }
+        for url, expected in cases.items():
+            with self.subTest(url=url):
+                target = cli.classify_link(url)
+                self.assertEqual((target.platform, target.target_id), expected)
+        generic = cli.classify_link("https://media.example.test/watch/one?id=2")
+        self.assertEqual(generic.platform, "web")
+        self.assertTrue(generic.target_id.startswith("media-example-test-"))
+        self.assertEqual(cli.classify_link("https://notyoutube.com/watch?v=one").platform, "web")
+
+    def test_public_link_classifier_rejects_non_web_and_embedded_credentials(self) -> None:
+        for value in (
+            "file:///tmp/private.mp4",
+            "ftp://example.test/video",
+            "https://user:secret@example.test/v",
+            "https://example.test:not-a-port/video",
+        ):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                cli.classify_link(value)
+
     def test_default_output_is_stable_per_short_id(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             with mock.patch.dict(
@@ -45,6 +85,17 @@ class PublicPackageTests(unittest.TestCase):
         self.assertNotEqual(first, other)
         self.assertEqual(first.name, "weixin_Abc123.mp3")
         self.assertNotIn("primary", str(first))
+
+    def test_provider_output_is_stable_and_keeps_youtube_id_case(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            with mock.patch.dict(
+                os.environ,
+                {user_storage.OUTPUT_ROOT_ENV: str(Path(tmp) / "outputs")},
+                clear=False,
+            ):
+                target = cli.classify_link("https://youtu.be/lDwm-UPILuw?si=one")
+                output = cli.target_output_path(target, profile="primary")
+        self.assertEqual(output.name, "youtube_lDwm-UPILuw.mp3")
 
     def test_run_state_is_target_and_mode_bound(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -160,12 +211,18 @@ class PublicPackageTests(unittest.TestCase):
     def test_requirements_pin_both_macos_wheel_hashes(self) -> None:
         text = (bootstrap.SOURCE_ROOT / "requirements-macos.txt").read_text(encoding="utf-8")
         self.assertIn("imageio-ffmpeg==0.6.0", text)
-        self.assertEqual(text.count("--hash=sha256:"), 2)
+        self.assertIn("yt-dlp==2026.8.19", text)
+        self.assertIn("yt-dlp-ejs==0.8.0", text)
+        self.assertIn("deno==2.9.5", text)
+        self.assertEqual(text.count("--hash=sha256:"), 6)
 
     def test_requirements_pin_both_windows_wheel_hashes(self) -> None:
         text = (bootstrap.SOURCE_ROOT / "requirements-windows.txt").read_text(encoding="utf-8")
         self.assertIn("imageio-ffmpeg==0.6.0", text)
-        self.assertEqual(text.count("--hash=sha256:"), 2)
+        self.assertIn("yt-dlp==2026.8.19", text)
+        self.assertIn("yt-dlp-ejs==0.8.0", text)
+        self.assertIn("deno==2.9.5", text)
+        self.assertEqual(text.count("--hash=sha256:"), 5)
 
     def test_release_scan_has_no_private_or_generated_files(self) -> None:
         result = release_check.scan()

@@ -12,7 +12,7 @@ from types import SimpleNamespace
 from unittest import mock
 
 import weixin_replay_cli as cli
-from replay_mp3_studio import extractors, platform_support, utils
+from replay_mp3_studio import extractors, platform_support, user_storage, utils, web_tools
 from scripts import bootstrap
 
 
@@ -117,13 +117,24 @@ class WindowsSupportTests(unittest.TestCase):
         with (
             mock.patch.dict(os.environ, {}, clear=False),
             mock.patch.object(cli.platform, "system", return_value="Windows"),
+            mock.patch.object(cli.sys, "version_info", (3, 11, 0)),
             mock.patch.object(cli, "wechat_installed_or_running", return_value=(True, True)),
             mock.patch("replay_mp3_studio.utils.find_ffmpeg", return_value="C:/ffmpeg.exe"),
+            mock.patch(
+                "replay_mp3_studio.web_tools.web_tools_status",
+                return_value={
+                    "yt_dlp_ready": True,
+                    "yt_dlp_version": "2026.8.19",
+                    "javascript_runtime_ready": True,
+                    "javascript_runtime": "deno",
+                },
+            ),
         ):
             payload = cli.preflight_payload("windows-test")
         self.assertTrue(payload["ready"])
         self.assertFalse(payload["automatic_filehelper_ready"])
         self.assertTrue(payload["manual_playback_ready"])
+        self.assertTrue(payload["web_link_ready"])
         self.assertEqual(payload["desktop_automation_mode"], "user_confirmed_manual_playback")
         self.assertIn("文件传输助手", " ".join(payload["windows_manual_steps"]))
 
@@ -133,7 +144,93 @@ class WindowsSupportTests(unittest.TestCase):
             mock.patch.object(cli, "wechat_installed_or_running", return_value=(True, False)),
         ):
             with self.assertRaisesRegex(RuntimeError, "WeChat is not running"):
-                cli._cmd_run_private(SimpleNamespace(manual_playback=True))
+                cli._cmd_run_private(
+                    SimpleNamespace(
+                        url="https://weixin.qq.com/sph/Abc123",
+                        manual_playback=True,
+                    )
+                )
+
+    def test_windows_uses_shared_youtube_route_without_touching_wechat(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            env = {
+                user_storage.DATA_ROOT_ENV: str(root / "data"),
+                user_storage.OUTPUT_ROOT_ENV: str(root / "outputs"),
+            }
+            args = SimpleNamespace(
+                url="https://www.youtube.com/watch?v=AbC_123-xYz",
+                manual_playback=False,
+                profile="",
+                output="",
+                capture_window=1,
+                min_duration=0.0,
+            )
+            with (
+                mock.patch.dict(os.environ, env, clear=False),
+                mock.patch.object(cli.platform, "system", return_value="Windows"),
+                mock.patch.object(
+                    cli,
+                    "wechat_installed_or_running",
+                    side_effect=AssertionError("non-Weixin route must not inspect WeChat"),
+                ),
+                mock.patch.object(extractors, "run_other_site") as run_other,
+                mock.patch.object(
+                    utils,
+                    "verify_mp3",
+                    return_value={"bytes": 321, "duration_seconds": 12.5},
+                ),
+            ):
+                result = cli._cmd_run_private(args)
+        self.assertEqual(result, 0)
+        run_other.assert_called_once()
+        self.assertIn("AbC_123-xYz", run_other.call_args.args[0])
+
+    def test_windows_uses_shared_xiaohongshu_route_without_touching_wechat(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            env = {
+                user_storage.DATA_ROOT_ENV: str(root / "data"),
+                user_storage.OUTPUT_ROOT_ENV: str(root / "outputs"),
+            }
+            args = SimpleNamespace(
+                url=(
+                    "https://www.xiaohongshu.com/fe/live-h5/page/live_replay/570"
+                    "?host_id=88"
+                ),
+                manual_playback=False,
+                profile="",
+                output="",
+                capture_window=1,
+                min_duration=0.0,
+            )
+            with (
+                mock.patch.dict(os.environ, env, clear=False),
+                mock.patch.object(cli.platform, "system", return_value="Windows"),
+                mock.patch.object(
+                    cli,
+                    "wechat_installed_or_running",
+                    side_effect=AssertionError("non-Weixin route must not inspect WeChat"),
+                ),
+                mock.patch.object(extractors, "run_xiaohongshu") as run_xhs,
+                mock.patch.object(
+                    utils,
+                    "verify_mp3",
+                    return_value={"bytes": 654, "duration_seconds": 25.0},
+                ),
+            ):
+                result = cli._cmd_run_private(args)
+        self.assertEqual(result, 0)
+        run_xhs.assert_called_once()
+
+    def test_windows_rejects_weixin_manual_flag_for_other_platforms(self) -> None:
+        args = SimpleNamespace(
+            url="https://x.com/example/status/2091487928124047817",
+            manual_playback=True,
+        )
+        with mock.patch.object(cli.platform, "system", return_value="Windows"):
+            with self.assertRaisesRegex(ValueError, "only valid for a Weixin"):
+                cli._cmd_run_private(args)
 
     def test_windows_ffmpeg_discovery_uses_venv_scripts_layout(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -147,6 +244,31 @@ class WindowsSupportTests(unittest.TestCase):
                 mock.patch.dict(os.environ, {"FFMPEG": ""}, clear=False),
             ):
                 self.assertEqual(utils.find_ffmpeg(), str(ffmpeg))
+
+    def test_windows_web_tools_use_venv_scripts_layout(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            scripts = root / "work" / "venv" / "Scripts"
+            scripts.mkdir(parents=True)
+            yt_dlp = scripts / "yt-dlp.exe"
+            deno = scripts / "deno.exe"
+            yt_dlp.write_bytes(b"tool")
+            deno.write_bytes(b"tool")
+            with mock.patch.object(web_tools.shutil, "which", return_value="C:/system/yt-dlp.exe"):
+                self.assertEqual(web_tools.yt_dlp_command(root), [str(yt_dlp.resolve())])
+            self.assertEqual(web_tools.javascript_runtime(root), ("deno", str(deno.resolve())))
+
+    def test_bootstrap_detects_pinned_windows_web_tools(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            runtime = Path(tmp)
+            scripts = runtime / "work" / "venv" / "Scripts"
+            scripts.mkdir(parents=True)
+            (scripts / "yt-dlp.exe").write_bytes(b"tool")
+            (scripts / "deno.exe").write_bytes(b"tool")
+            with mock.patch.object(bootstrap, "RUNTIME_ROOT", runtime):
+                tools = bootstrap.installed_web_tools()
+        self.assertTrue(tools["yt_dlp"].endswith("yt-dlp.exe"))
+        self.assertTrue(tools["deno"].endswith("deno.exe"))
 
     def test_windows_without_confirmation_stops_before_ui_or_runtime_scan(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

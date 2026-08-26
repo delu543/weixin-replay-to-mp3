@@ -5,11 +5,29 @@
 Local WeChat operation supports macOS and Windows. Linux and remote/cloud environments
 fail closed. Run `python scripts/bootstrap.py doctor` and read the reported platform.
 
+Full Xiaohongshu/YouTube/X/Twitter/generic webpage support requires Python 3.10 or
+newer. An older Python runtime is not full product readiness.
+
+## YouTube, X/Twitter, or another webpage fails
+
+Run `python scripts/bootstrap.py doctor` and check `web_link_ready`, `yt_dlp_ready`,
+and `javascript_runtime_ready`. The installer provides pinned yt-dlp, local EJS assets,
+and Deno in the private venv on both macOS and Windows.
+
+The route does not automatically read browser cookies. A link can still fail because
+it requires login, age confirmation, a subscription, region access, DRM, or because
+the site changed. Use a user-authorized local media file/artifact when available; do
+not weaken cookie, credential, proxy, or protection boundaries.
+
+Non-Weixin links never require `文件传输助手`. If Codex asks for WeChat while processing
+YouTube, Xiaohongshu, X/Twitter, Songy, a direct-media URL, or a generic webpage, stop:
+the platform route was selected incorrectly.
+
 ## Windows reports `Manual playback is required`
 
-This is the expected safe branch when no target-bound local/provider source is already
-available. The repository has no verified Windows WeChat UI adapter and will not guess
-coordinates or send to an unverified chat.
+This is the expected safe branch only for a Weixin Channels link when no target-bound
+local/provider source is already available. The repository has no verified Windows
+WeChat UI adapter and will not guess coordinates or send to an unverified chat.
 
 1. Open official Windows WeChat.
 2. Select the chat titled exactly `文件传输助手`.
@@ -95,11 +113,13 @@ The file is preserved. The CLI refuses to overwrite an existing output that fail
 decode or the requested minimum duration. Inspect it, choose an explicit new `--output`,
 or move it yourself after deciding it is not needed.
 
-## `ffmpeg not found`
+## `ffmpeg not found` or web tools are not ready
 
 Run `python scripts/bootstrap.py install`. It installs the pinned wheel for the current
-operating system into a user-local venv. A system FFmpeg can instead be supplied through
-the `FFMPEG` environment variable using its exact executable path.
+operating system into a user-local venv, including FFmpeg, yt-dlp, EJS, and Deno. A
+system FFmpeg can instead be supplied through the `FFMPEG` environment variable using
+its exact executable path, but the pinned web tools are still required for full
+multi-platform webpage support.
 
 ## Codex does not recognize the Skill immediately
 

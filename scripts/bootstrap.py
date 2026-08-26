@@ -25,6 +25,7 @@ APP_ROOT = application_root()
 RUNTIME_ROOT = APP_ROOT / "runtime"
 SKILL_ROOT = Path.home() / ".codex" / "skills" / "weixin-replay-to-mp3"
 MARKER = ".managed-by-weixin-replay-to-mp3"
+MIN_PYTHON = (3, 10)
 COPY_DIRS = ("replay_mp3_studio", "outputs", "tools", "video-audio-extractor")
 COPY_FILES = (
     "weixin_replay_cli.py",
@@ -55,6 +56,22 @@ def installed_ffmpeg() -> str:
         ]
     )
     return str(candidates[0]) if candidates else ""
+
+
+def installed_runtime_tool(name: str) -> str:
+    venv = RUNTIME_ROOT / "work" / "venv"
+    filenames = {
+        "yt-dlp": (venv / "bin" / "yt-dlp", venv / "Scripts" / "yt-dlp.exe"),
+        "deno": (venv / "bin" / "deno", venv / "Scripts" / "deno.exe"),
+    }
+    return next((str(path) for path in filenames.get(name, ()) if path.is_file()), "")
+
+
+def installed_web_tools() -> dict[str, str]:
+    return {
+        "yt_dlp": installed_runtime_tool("yt-dlp"),
+        "deno": installed_runtime_tool("deno"),
+    }
 
 
 def venv_python(venv: Path, system: str | None = None) -> Path:
@@ -154,16 +171,26 @@ def copy_runtime() -> None:
 
 def ensure_ffmpeg(skip_deps: bool) -> str:
     env_ffmpeg = os.environ.get("FFMPEG", "")
-    if env_ffmpeg and Path(env_ffmpeg).is_file():
-        return env_ffmpeg
-    system = shutil.which("ffmpeg")
-    if system:
-        return system
-    existing = installed_ffmpeg()
-    if existing:
+    external_ffmpeg = env_ffmpeg if env_ffmpeg and Path(env_ffmpeg).is_file() else ""
+    external_ffmpeg = external_ffmpeg or (shutil.which("ffmpeg") or "")
+    existing = external_ffmpeg or installed_ffmpeg()
+    web_tools = installed_web_tools()
+    if existing and all(web_tools.values()):
         return existing
     if skip_deps:
-        raise RuntimeError("ffmpeg is missing and dependency installation was skipped.")
+        missing = [
+            name
+            for name, available in (
+                ("ffmpeg", existing),
+                ("yt-dlp", web_tools["yt_dlp"]),
+                ("deno", web_tools["deno"]),
+            )
+            if not available
+        ]
+        raise RuntimeError(
+            "Pinned runtime dependencies are missing and installation was skipped: "
+            + ", ".join(missing)
+        )
     venv = RUNTIME_ROOT / "work" / "venv"
     venv.parent.mkdir(parents=True, exist_ok=True)
     subprocess.run([sys.executable, "-m", "venv", str(venv)], check=True)
@@ -181,9 +208,12 @@ def ensure_ffmpeg(skip_deps: bool) -> str:
         ],
         check=True,
     )
-    result = installed_ffmpeg()
+    result = external_ffmpeg or installed_ffmpeg()
     if not result:
         raise RuntimeError("Pinned ffmpeg installation completed without a usable binary.")
+    web_tools = installed_web_tools()
+    if not all(web_tools.values()):
+        raise RuntimeError("Pinned web-link dependencies completed without usable yt-dlp and Deno tools.")
     return result
 
 
@@ -218,14 +248,15 @@ def tighten_permissions() -> None:
 def cmd_install(args: argparse.Namespace) -> int:
     if platform.system() not in SUPPORTED_SYSTEMS:
         raise RuntimeError("This release supports macOS and Windows local runtimes only.")
-    if sys.version_info < (3, 9):
-        raise RuntimeError("Python 3.9 or newer is required.")
+    if sys.version_info < MIN_PYTHON:
+        raise RuntimeError("Python 3.10 or newer is required for cross-platform web links.")
     copy_runtime()
     ffmpeg = ensure_ffmpeg(args.skip_deps)
     copy_skill()
     tighten_permissions()
     payload = doctor_payload()
     payload["installed_ffmpeg"] = ffmpeg
+    payload["installed_web_tools"] = installed_web_tools()
     print(json.dumps(payload, ensure_ascii=False, indent=2))
     return 0 if payload["state"] == "ready" else 2
 

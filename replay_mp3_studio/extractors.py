@@ -79,6 +79,23 @@ def parse_xhs_ids(url: str) -> tuple[str, str]:
     return clip_id, host_id
 
 
+def resolve_xhs_share_url(url: str) -> str:
+    parsed = urllib.parse.urlparse(url)
+    host = (parsed.hostname or "").lower()
+    if host != "xhslink.com" and not host.endswith(".xhslink.com"):
+        return url
+    request = urllib.request.Request(
+        url,
+        headers={"User-Agent": "Mozilla/5.0 (compatible; WeixinReplayToMP3/1.0)"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            resolved = response.geturl()
+    except urllib.error.URLError as exc:
+        raise RuntimeError(f"Xiaohongshu share-link resolution failed: {exc}") from exc
+    return resolved or url
+
+
 def urls_from_string(text: str) -> list[str]:
     decoded = (
         urllib.parse.unquote(text)
@@ -300,13 +317,14 @@ def find_reusable_songy_mp3(url: str, project_root: Path = PROJECT_ROOT) -> Path
 
 
 def run_xiaohongshu(url: str, output: Path, artifacts: Path, log) -> None:
-    clip_id, host_id = parse_xhs_ids(url)
+    resolved_url = resolve_xhs_share_url(url)
+    clip_id, host_id = parse_xhs_ids(resolved_url)
     params = urllib.parse.urlencode({"clip_id": clip_id, "host_id": host_id})
     api_url = f"{XHS_CLIP_API}?{params}"
     headers = {
         "Accept": "application/json, text/plain, */*",
         "Origin": "https://www.xiaohongshu.com",
-        "Referer": url,
+        "Referer": resolved_url,
         "User-Agent": (
             "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) "
             "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1"
@@ -320,13 +338,40 @@ def run_xiaohongshu(url: str, output: Path, artifacts: Path, log) -> None:
     except (urllib.error.URLError, json.JSONDecodeError) as exc:
         raise RuntimeError(f"Xiaohongshu metadata request failed: {exc}") from exc
     urls = sorted(walk_media(payload), key=media_score)
-    report = {"api_url": api_url, "clip_id": clip_id, "host_id": host_id, "media_urls": urls, "response": payload}
+    report = {
+        "api_url": api_url,
+        "clip_id": clip_id,
+        "host_id": host_id,
+        "resolved_host": urllib.parse.urlparse(resolved_url).netloc,
+        "media_urls": urls,
+        "response": payload,
+    }
     artifacts.mkdir(parents=True, exist_ok=True)
     (artifacts / "xiaohongshu_metadata.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     if not urls:
         raise RuntimeError("No Xiaohongshu media URL found.")
     log(f"Found {len(urls)} Xiaohongshu media candidate(s).")
     convert_media(urls[0], output, log)
+
+
+def run_songy_direct_link(url: str, output: Path, artifacts: Path, log) -> None:
+    script = AUTHORIZED_FETCHERS / "direct_links_to_mp3.py"
+    cmd = [
+        python_executable(),
+        str(script),
+        "--only",
+        "songy",
+        "--songy-link",
+        url,
+        "--songy-output",
+        str(output),
+    ]
+    code = run_streaming(cmd, log)
+    if code != 0 or not output.is_file():
+        raise RuntimeError(
+            "Songy direct link did not expose authorized media. Use a user-authorized "
+            "artifact or local media file."
+        )
 
 
 def run_songy(
@@ -382,18 +427,22 @@ def run_songy(
 
 def other_script_kind(url: str) -> str:
     parsed = urllib.parse.urlparse(url)
-    host = parsed.netloc.lower().removeprefix("www.")
+    host = (parsed.hostname or "").lower().rstrip(".")
+    if parsed.scheme not in {"http", "https"} or not host:
+        return ""
     if is_media_url(url):
         return "direct_media"
-    if host == "youtu.be" or host.endswith("youtube.com"):
+    if host == "youtu.be" or host == "youtube.com" or host.endswith(".youtube.com"):
         return "youtube"
-    return ""
+    if host == "x.com" or host == "twitter.com" or host.endswith(".twitter.com"):
+        return "x"
+    return "yt_dlp"
 
 
 def missing_other_script_message(url: str) -> str:
     parsed = urllib.parse.urlparse(url)
     host = parsed.netloc or "unknown"
-    return f"缺少该脚本：当前没有可处理 {host} 的脚本。已支持 YouTube/youtu.be 和直接媒体 URL。"
+    return f"无法处理 {host}：只接受 http/https 媒体或网页链接。"
 
 
 def run_other_site(url: str, output: Path, artifacts: Path, log, sample_seconds: int = 0) -> None:

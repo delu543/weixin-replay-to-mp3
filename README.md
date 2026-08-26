@@ -1,53 +1,96 @@
-# 视频号链接转 MP3（Codex 工具）
+# 直播 / 视频链接转 MP3（Codex 工具）
 
-把一个本人有权访问的视频号链接交给 Codex，下载并验证完整媒体，最后导出 MP3。
+把本人有权访问的视频号、小红书、YouTube、X/Twitter、课程或直接媒体链接交给 Codex，
+自动识别平台、下载并验证完整媒体，最后导出 MP3。其他公开网页媒体也会走通用提取器
+尝试；需要登录、订阅、地区许可或 DRM 的内容不会绕过限制。
 
-- macOS：通过受保护的 `文件传输助手`自动链路定位、发送/复用链接并打开播放。
-- Windows：复用同一套下载、断点续传、转码和校验核心；没有可靠微信界面适配时，
-  由用户完成一次明确的发送、打开和播放。
+这是一个“把 Codex 对话当作产品界面”的本地工具，不生成文字稿，也不要求用户学习
+命令行。项目没有共享服务器：链接处理、断点续传、转码、校验和运行状态都保存在当前
+电脑、当前系统账户的隔离目录中，不会写回 GitHub，也不会与其他用户共用。
+
+- macOS 与 Windows：小红书、YouTube、X/Twitter、直接媒体和可支持的普通网页使用同一
+  套直接提取、转码和校验流程，不需要操作微信。
+- 只有视频号需要微信入口：macOS 可走受保护的 `文件传输助手` 自动链路；Windows 没有
+  可靠微信界面适配时，由用户完成一次明确的发送、打开和播放。
 
 使用界面就是一个 Codex 对话窗口，不需要另外学习命令行。
 
-## 最简单的使用方式
+## 第一次使用（macOS / Windows）
 
-第一次，在 Codex 中发送：
+准备好以下三项即可：
+
+- Codex 桌面版；Windows 用户可参考 [OpenAI 官方 Windows 说明](https://learn.chatgpt.com/docs/windows/windows-app)；
+- Python 3.10 或更高版本；
+- 如果要处理视频号，再准备已登录的官方桌面微信。
+
+第一次，把下面整段发给 Codex：
 
 ```text
-请读取 https://github.com/delu543/weixin-replay-to-mp3，按仓库说明安装并检查。
-以后我在本窗口发送视频号链接时，直接帮我导出成 MP3。
+请读取并在本机安装这个工具：
+
+https://github.com/delu543/weixin-replay-to-mp3
+
+必须先阅读仓库根目录的 AGENTS.md 和 README.md。识别当前是 macOS 还是 Windows 后，
+按仓库说明完成检查和当前用户安装。
+
+安装并检查通过后，请告诉我“已经可以发送链接”。以后我只发送本人有权处理的视频、
+直播或课程链接，你直接帮我导出 MP3；如果视频号必须手动操作微信，只告诉我最少的
+操作步骤，等我确认播放后继续。
 ```
 
-安装检查通过后，日常只需要发送：
+Codex 会先做只读检查，只有用户明确要求安装或使用后才安装当前系统所需的固定依赖。
+用户不需要自己复制命令。看到“已经可以发送链接”后，首次准备完成。
+
+## 日常使用：只发链接
+
+日常只需要发送任意一个目标链接，例如：
 
 ```text
 https://weixin.qq.com/sph/<视频短链接 ID>
+https://www.xiaohongshu.com/.../live_replay/...
+https://www.youtube.com/watch?v=...
+https://x.com/<用户>/status/<ID>
 ```
+
+非视频号链接在 macOS 和 Windows 上都直接进入同一套平台/网页提取器，不打开微信，也
+不会读取浏览器 Cookie 或账号 token。只有 Windows 上的视频号命令明确提示需要手动
+播放时，用户才需要：
+
+1. 打开官方 Windows 微信中标题恰好为 `文件传输助手` 的聊天；
+2. 发送本次链接，打开最新的同一链接并开始播放；
+3. 回到 Codex 回复：`已在文件传输助手打开这个链接，并开始播放`。
+
+Codex 收到这句确认后会继续抓取、下载、转码和完整校验。Windows 当前不会自动点击或
+发送微信消息，因此不会盲目操作其他群聊；如果当前微信版本的安全运行目录不兼容，
+Codex 会说明边界，并改用用户有权保存的本地媒体文件转换，不会伪报成功。
 
 Codex 会返回最终文件路径、大小和时长。默认文件位于当前系统账户的 Downloads 目录：
 
 ```text
 Downloads/WeixinReplayMP3/<本地隔离命名空间>/weixin_<短链接 ID>.mp3
+Downloads/WeixinReplayMP3/<本地隔离命名空间>/youtube_<视频 ID>.mp3
+Downloads/WeixinReplayMP3/<本地隔离命名空间>/x_<状态 ID>.mp3
+Downloads/WeixinReplayMP3/<本地隔离命名空间>/xiaohongshu_<回放 ID>.mp3
 ```
 
-同一链接再次发送时会先完整解码验证现有 MP3；通过就直接复用，不会再次操作微信、
-重复下载或二次转码。中途断开时，也只会继续当前用户命名空间内、与目标短链接绑定的
-抓取和分片下载状态。
+同一平台目标再次发送时会先完整解码验证现有 MP3；通过就直接复用，不会重复下载或
+二次转码。中途断开时，也只会继续当前用户命名空间内、与目标链接绑定的状态。
 
 ## macOS 与 Windows 的差异
 
-| 系统 | 微信入口 | 后续处理 |
+| 系统 | 非视频号链接 | 视频号入口 |
 | --- | --- | --- |
-| macOS | 自动验证 `文件传输助手`、发送或复用链接、打开并证明播放 | 完整接入下载、断点续传、解密、转 MP3、完整解码 |
-| Windows | 先自动尝试不需要微信界面的目标绑定来源；需要微信时由用户手动发送、打开并确认播放 | 与 macOS 共用同一套下载、断点续传、解密、转 MP3、完整解码 |
-| Linux/云端 | 不支持本机微信入口 | 不宣称支持本机微信操作 |
+| macOS | 小红书、YouTube、X/Twitter、直接媒体、Songy 和通用网页走共享提取器 | 自动验证 `文件传输助手`、发送/复用链接、打开并证明播放 |
+| Windows | 与 macOS 使用同一套平台识别、网页提取、转码和完整解码 | 先试目标绑定来源；需要微信时由用户手动发送、打开并确认播放 |
+| Linux/云端 | 本产品暂不作为支持平台 | 不支持本机微信入口 |
 
 两端都需要：
 
-- Python 3.9 或更高版本；
-- 官方桌面微信已登录；
+- Python 3.10 或更高版本；
 - 足够空间保存原视频工作文件和最终 MP3。
 
-只有 macOS 自动微信界面链路需要 Swift Command Line Tools 和辅助功能权限。
+只有视频号需要已登录的官方桌面微信；只有 macOS 自动微信界面链路需要 Swift Command
+Line Tools 和辅助功能权限。
 
 Windows 当前不会盲点微信界面，也不会自动向任何聊天发送消息。如果命令返回
 `Manual playback is required`，Codex 必须告诉用户并等待完成以下步骤：
@@ -55,7 +98,7 @@ Windows 当前不会盲点微信界面，也不会自动向任何聊天发送消
 1. 打开官方 Windows 微信。
 2. 打开标题恰好为 `文件传输助手` 的聊天。
 3. 把本次链接发进去，打开最新的同一链接并开始播放；不要同时播放其他微信视频。
-4. 回到 Codex 明确回复“这个链接已经开始播放”。
+4. 回到 Codex 明确回复“已在文件传输助手打开这个链接，并开始播放”。
 
 确认前不会扫描近期运行文件。确认后，工具只检查已知的安全播放/运行目录，再继续同一
 下载和转码核心。如果 Windows 微信版本把播放运行文件放在其他位置，可以显式设置
@@ -109,8 +152,8 @@ python scripts/bootstrap.py install
 安装器只做三件事：
 
 1. 把运行源码复制到当前用户的私有应用目录；
-2. 在私有 venv 中安装固定版本、固定哈希、与当前系统匹配的
-   `imageio-ffmpeg` wheel；
+2. 在私有 venv 中安装固定版本、固定哈希、与当前系统匹配的 `imageio-ffmpeg`、
+   `yt-dlp`、`yt-dlp-ejs` 和 Deno；
 3. 安装 `weixin-replay-to-mp3` Codex Skill。
 
 它不使用 root/管理员权限，不退出微信，不读取聊天，不安装证书，不修改代理，也不会
@@ -118,7 +161,11 @@ python scripts/bootstrap.py install
 
 ## 为什么这通常不是录一个小时
 
-正常路径不是实时录音。macOS 自动入口和 Windows 手动播放接力之后都复用同一流程：
+正常路径不是实时录音。小红书、YouTube、X/Twitter 和普通网页先直接获取可用媒体；
+视频号在 macOS 自动入口或 Windows 手动播放接力之后进入自己的目标绑定流程。两类路线
+最终都直接下载/转换源媒体并完整解码校验。
+
+视频号路线会：
 
 1. 把本次播放与精确短链接绑定；
 2. 只冻结播放前后变化的安全运行文件；
@@ -127,11 +174,12 @@ python scripts/bootstrap.py install
 5. 按服务器声明的完整字节数并发、断点续传下载；
 6. 转成 MP3，再用 ffmpeg 从头到尾完整解码。
 
-因此主要耗时通常是源文件下载和转码，不受视频时长一比一限制。网络/CDN 限速仍会影响
-速度，但已经下载且校验过的分片不会重下。系统音频录制只是明确的最后备选，不是正常
-Windows 流程。
+因此主要耗时通常是网页解析、源文件下载和转码，不受视频时长一比一限制。网络/CDN
+限速仍会影响速度。系统音频录制只是明确的最后备选，不是正常 Windows 流程。
 
 ## 为什么不会发错群
+
+非视频号链接完全不操作微信，因此没有误发群聊的路径。
 
 macOS 自动发送前必须同时证明：
 
@@ -156,7 +204,7 @@ macOS 安装目录：
 ```bash
 python3 "$HOME/Library/Application Support/WeixinReplayToMP3/runtime/weixin_replay_cli.py" preflight
 python3 "$HOME/Library/Application Support/WeixinReplayToMP3/runtime/weixin_replay_cli.py" \
-  run "https://weixin.qq.com/sph/<id>"
+  run "<本人有权处理的链接>"
 ```
 
 Windows PowerShell 安装目录：
@@ -164,7 +212,7 @@ Windows PowerShell 安装目录：
 ```powershell
 python "$env:LOCALAPPDATA\WeixinReplayToMP3\runtime\weixin_replay_cli.py" preflight
 python "$env:LOCALAPPDATA\WeixinReplayToMP3\runtime\weixin_replay_cli.py" `
-  run "https://weixin.qq.com/sph/<id>"
+  run "<本人有权处理的链接>"
 ```
 
 Windows 命令明确要求手动播放时，先完成上文步骤并回复确认，再运行：
@@ -174,7 +222,7 @@ python "$env:LOCALAPPDATA\WeixinReplayToMP3\runtime\weixin_replay_cli.py" `
   run "https://weixin.qq.com/sph/<id>" --manual-playback
 ```
 
-如果用户已经有权保存并拿到本地 MP4/M4A 等文件，两端都可以跳过微信入口直接转换：
+如果用户已经有权保存并拿到本地 MP4/M4A 等文件，两端都可以跳过网页或微信入口直接转换：
 
 ```text
 python <运行目录>/weixin_replay_cli.py convert-file "<本地媒体文件>"
@@ -187,8 +235,8 @@ python <运行目录>/weixin_replay_cli.py verify "<MP3 文件>"
 ```
 
 如果用户明确知道最低时长，可增加 `--min-duration <秒>`。默认不假设视频一定是 60
-分钟；完整性主要由精确链接、新增量、同上下文参数、MP4 头、完整字节数、候选大小和
-最终完整解码共同证明。
+分钟；视频号完整性主要由精确链接、新增量、同上下文参数、MP4 头、完整字节数、候选
+大小和最终完整解码共同证明；其他平台也必须得到完整的下载/转换结果并通过最终完整解码。
 
 ## 隐私和安全
 
@@ -211,8 +259,8 @@ python scripts/release_check.py
 
 检查包括：代码/私密数据允许清单、绝对开发路径、凭据模式、大文件/媒体、Codex Skill、
 安装器和不触碰真实微信的离线回归。GitHub Actions 会在 macOS 与 Windows 上分别安装
-固定哈希的 FFmpeg wheel 并运行同一套测试；这不等同于 Windows 微信真机验证，真机
-边界会继续明确标注。
+固定哈希的 FFmpeg、yt-dlp、EJS 和 Deno 依赖并运行同一套测试；这会验证跨平台路由与
+依赖，但不等同于每个外部网站或 Windows 微信真机都已验证，相关边界会继续明确标注。
 
 ## 许可证与声明
 

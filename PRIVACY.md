@@ -1,15 +1,15 @@
 # Privacy
 
-This project is local-first. Its scope is one user-supplied Weixin Channels short link
-at a time.
+This project is local-first. Its scope is one user-supplied authorized replay, video,
+course, webpage, or direct-media link at a time.
 
 ## Data the workflow may use locally
 
-- The supplied `weixin.qq.com/sph/...` link.
-- On macOS, process, accessibility, WindowServer, and power-assertion metadata needed
-  to prove the official WeChat target and playback state.
-- On Windows, only after explicit user confirmation, newly changed files in bounded
-  playback/runtime roots.
+- The supplied link and provider metadata needed to locate its media.
+- For a Weixin link on macOS, process, accessibility, WindowServer, and power-assertion
+  metadata needed to prove the official WeChat target and playback state.
+- For a Weixin link on Windows, only after explicit user confirmation, newly changed
+  files in bounded playback/runtime roots.
 - Encrypted media bytes, a same-context decode value, resumable download checksums,
   the decrypted MP4 working file, and the final MP3.
 
@@ -21,7 +21,8 @@ committed.
 
 - WeChat chat or contact databases.
 - Unrelated conversations or message history.
-- Browser cookies, Login Data, Web Data, Keychain/Credential Manager secrets.
+- Browser cookies, Login Data, Web Data, Keychain/Credential Manager secrets. The
+  YouTube, X/Twitter, and generic webpage routes do not import them automatically.
 - Arbitrary account tokens or passwords.
 - Global network traffic.
 

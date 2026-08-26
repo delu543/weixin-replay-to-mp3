@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Codex-facing CLI for one authorized Weixin Channels replay link."""
+"""Codex-facing CLI for authorized replay and video links."""
 
 from __future__ import annotations
 
@@ -13,9 +13,11 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import parse_qs as urllib_parse_qs
 from urllib.parse import urlsplit, urlunsplit
 
 from replay_mp3_studio.user_storage import (
@@ -37,6 +39,15 @@ from replay_mp3_studio.platform_support import (
 ROOT = Path(__file__).resolve().parent
 VIDEO_AUDIO_EXTRACTOR_ROOT = ROOT / "video-audio-extractor"
 SHORT_ID_RE = re.compile(r"^[A-Za-z0-9_-]{5,80}$")
+MIN_PYTHON = (3, 10)
+
+
+@dataclass(frozen=True)
+class LinkTarget:
+    url: str
+    platform: str
+    target_id: str
+    output_prefix: str
 
 
 def canonical_link(value: str) -> tuple[str, str]:
@@ -51,16 +62,105 @@ def canonical_link(value: str) -> tuple[str, str]:
     return urlunsplit(("https", "weixin.qq.com", f"/sph/{short_id}", "", "")), short_id
 
 
+def _bounded_id(value: str, fallback: str) -> str:
+    cleaned = re.sub(r"[^A-Za-z0-9_-]+", "-", str(value or "")).strip("-_")
+    return cleaned[:80] or fallback
+
+
+def _link_hash(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()[:16]
+
+
+def _host_is(host: str, domain: str) -> bool:
+    return host == domain or host.endswith(f".{domain}")
+
+
+def classify_link(value: str) -> LinkTarget:
+    raw = str(value or "").strip()
+    parsed = urlsplit(raw)
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+        raise ValueError("Only http/https replay, video, or media links are accepted.")
+    try:
+        parsed.port
+    except ValueError as exc:
+        raise ValueError("The supplied link has an invalid port.") from exc
+    if parsed.username or parsed.password:
+        raise ValueError("Links containing embedded credentials are not accepted.")
+    host = parsed.hostname.lower().rstrip(".")
+    comparable_host = host.removeprefix("www.")
+    if host == "weixin.qq.com":
+        link, short_id = canonical_link(raw)
+        return LinkTarget(link, "weixin", short_id, "weixin")
+
+    query = urllib_parse_qs(parsed.query)
+    if _host_is(host, "xhslink.com") or _host_is(host, "xiaohongshu.com"):
+        match = re.search(r"/live_replay/(\d+)", parsed.path)
+        clip_id = next(
+            (
+                values[0]
+                for key in ("share_source_id", "clip_id", "id")
+                if (values := query.get(key))
+            ),
+            match.group(1) if match else "",
+        )
+        return LinkTarget(
+            raw,
+            "xiaohongshu",
+            _bounded_id(clip_id, _link_hash(raw)),
+            "xiaohongshu",
+        )
+
+    if host == "youtu.be" or _host_is(host, "youtube.com"):
+        video_id = (query.get("v") or [""])[0]
+        if not video_id:
+            parts = [part for part in parsed.path.split("/") if part]
+            video_id = parts[-1] if parts else ""
+        return LinkTarget(raw, "youtube", _bounded_id(video_id, _link_hash(raw)), "youtube")
+
+    if host == "x.com" or _host_is(host, "twitter.com"):
+        status_match = re.search(r"/status/(\d+)", parsed.path)
+        status_id = status_match.group(1) if status_match else ""
+        return LinkTarget(raw, "x", _bounded_id(status_id, _link_hash(raw)), "x")
+
+    if _host_is(host, "songy.info"):
+        fragment_query = urllib_parse_qs(urlsplit(parsed.fragment).query)
+        course_id = (query.get("course_id") or fragment_query.get("course_id") or [""])[0]
+        return LinkTarget(raw, "songy", _bounded_id(course_id, _link_hash(raw)), "songy")
+
+    host_slug = _bounded_id(comparable_host, "web")[:32].lower()
+    return LinkTarget(raw, "web", f"{host_slug}-{_link_hash(raw)}", "web")
+
+
 def output_path(short_id: str, explicit: str = "", profile: str = "") -> Path:
     if explicit:
         return Path(explicit).expanduser().resolve()
     return (user_output_root(profile) / f"weixin_{short_id}.mp3").resolve()
 
 
+def target_output_path(target: LinkTarget, explicit: str = "", profile: str = "") -> Path:
+    if target.platform == "weixin":
+        return output_path(target.target_id, explicit, profile)
+    if explicit:
+        return Path(explicit).expanduser().resolve()
+    return (user_output_root(profile) / f"{target.output_prefix}_{target.target_id}.mp3").resolve()
+
+
 def run_dir(short_id: str, mode: str, profile: str = "") -> Path:
     suffix = "" if mode == "auto" else f"-{mode}"
     return ensure_private_dir(
         user_data_root(profile) / "runs" / "weixin-link" / f"{short_id}{suffix}"
+    )
+
+
+def target_run_dir(target: LinkTarget, mode: str, profile: str = "") -> Path:
+    if target.platform == "weixin":
+        return run_dir(target.target_id, mode, profile)
+    suffix = "" if mode == "auto" else f"-{mode}"
+    return ensure_private_dir(
+        user_data_root(profile)
+        / "runs"
+        / f"{target.platform}-link"
+        / f"{target.target_id}{suffix}"
     )
 
 
@@ -82,7 +182,7 @@ def preflight_payload(profile: str = "") -> dict[str, Any]:
         "windows": selected_system == "Windows",
         "architecture": platform.machine(),
         "python": platform.python_version(),
-        "python_supported": sys.version_info >= (3, 9),
+        "python_supported": sys.version_info >= MIN_PYTHON,
         "swift": bool(shutil.which("swift")),
         "node_optional": bool(shutil.which("node")),
         "wechat_installed": wechat_installed,
@@ -99,6 +199,26 @@ def preflight_payload(profile: str = "") -> dict[str, Any]:
     except Exception:
         checks["ffmpeg"] = ""
         checks["ffmpeg_ready"] = False
+    try:
+        from replay_mp3_studio.web_tools import web_tools_status
+
+        checks.update(web_tools_status(ROOT))
+    except Exception:
+        checks.update(
+            {
+                "yt_dlp_ready": False,
+                "yt_dlp_version": "",
+                "javascript_runtime_ready": False,
+                "javascript_runtime": "",
+            }
+        )
+    checks["web_link_ready"] = all(
+        bool(checks[key])
+        for key in ("python_supported", "ffmpeg_ready", "yt_dlp_ready", "javascript_runtime_ready")
+    )
+    checks["xiaohongshu_ready"] = all(
+        bool(checks[key]) for key in ("python_supported", "ffmpeg_ready")
+    )
     checks["automatic_filehelper_ready"] = all(
         bool(checks[key])
         for key in ("macos", "python_supported", "swift", "wechat_installed", "ffmpeg_ready")
@@ -108,7 +228,7 @@ def preflight_payload(profile: str = "") -> dict[str, Any]:
         for key in ("windows", "python_supported", "wechat_installed", "ffmpeg_ready")
     )
     checks["ready"] = bool(
-        checks["automatic_filehelper_ready"] or checks["manual_playback_ready"]
+        checks["platform_supported"] and checks["web_link_ready"] and checks["xiaohongshu_ready"]
     )
     checks["accessibility"] = (
         "verified_on_first_guarded_ui_use"
@@ -122,11 +242,12 @@ def preflight_payload(profile: str = "") -> dict[str, Any]:
             "Start real video playback, then explicitly confirm playback to Codex.",
             "Run this CLI with --manual-playback; do not run an unbound scan before confirmation.",
         ]
-        checks["next_action"] = (
-            "ask_user_to_open_exact_link_and_confirm_playback"
-            if checks["manual_playback_ready"]
-            else "install_or_start_official_windows_wechat_and_ffmpeg"
-        )
+        if not checks["web_link_ready"]:
+            checks["next_action"] = "install_pinned_web_and_media_dependencies"
+        elif checks["manual_playback_ready"]:
+            checks["next_action"] = "ready_for_all_links_manual_weixin_only_when_requested"
+        else:
+            checks["next_action"] = "ready_for_non_weixin_links_start_wechat_for_weixin"
     checks["data_isolation"] = {
         "schema": "v1",
         "namespace": storage_namespace(resolved_profile),
@@ -164,7 +285,10 @@ def _cmd_run_private(args: argparse.Namespace) -> int:
     selected_system = platform.system()
     if selected_system not in SUPPORTED_SYSTEMS:
         raise RuntimeError("This workflow supports local macOS and Windows runtimes only.")
-    if selected_system == "Windows" and args.manual_playback:
+    target = classify_link(args.url)
+    if args.manual_playback and target.platform != "weixin":
+        raise ValueError("--manual-playback is only valid for a Weixin Channels link.")
+    if selected_system == "Windows" and args.manual_playback and target.platform == "weixin":
         _wechat_installed, wechat_running = wechat_installed_or_running(system=selected_system)
         if not wechat_running:
             raise RuntimeError(
@@ -172,36 +296,57 @@ def _cmd_run_private(args: argparse.Namespace) -> int:
                 "running. Start WeChat, open the exact newest link in 文件传输助手, start "
                 "playback, and retry only after the user confirms it is playing."
             )
-    link, short_id = canonical_link(args.url)
+    link = target.url
     mode = "manual" if args.manual_playback else "auto"
     resolved_profile = activate_profile(args.profile)
     isolation = ensure_profile_layout(resolved_profile)
-    output = output_path(short_id, args.output, resolved_profile)
-    artifacts = run_dir(short_id, mode, resolved_profile)
+    output = target_output_path(target, args.output, resolved_profile)
+    artifacts = target_run_dir(target, mode, resolved_profile)
     prepare_output_parent(output, managed_default=not bool(args.output))
 
     if str(ROOT) not in sys.path:
         sys.path.insert(0, str(ROOT))
-    from replay_mp3_studio.extractors import run_weixin_link
+    from replay_mp3_studio.extractors import (
+        run_other_site,
+        run_songy_direct_link,
+        run_weixin_link,
+        run_xiaohongshu,
+    )
     from replay_mp3_studio.utils import verify_mp3
 
     started_at = datetime.now().astimezone().isoformat(timespec="seconds")
-    run_weixin_link(
-        link,
-        output,
-        artifacts,
-        lambda message: print(message, flush=True),
-        duration=args.capture_window,
-        manual_playback=args.manual_playback,
-        min_duration=args.min_duration,
-        desktop_automation_available=selected_system == "Darwin",
-    )
-    verification = verify_mp3(
-        output, lambda message: print(message, flush=True), min_duration_seconds=args.min_duration
-    )
+    log = lambda message: print(message, flush=True)
+    if output.exists():
+        verification = verify_mp3(output, log, min_duration_seconds=args.min_duration)
+        status = "reused_verified_output"
+    else:
+        if target.platform == "weixin":
+            run_weixin_link(
+                link,
+                output,
+                artifacts,
+                log,
+                duration=args.capture_window,
+                manual_playback=args.manual_playback,
+                min_duration=args.min_duration,
+                desktop_automation_available=selected_system == "Darwin",
+            )
+        elif target.platform == "xiaohongshu":
+            run_xiaohongshu(link, output, artifacts, log)
+        elif target.platform == "songy":
+            run_songy_direct_link(link, output, artifacts, log)
+        else:
+            run_other_site(link, output, artifacts, log)
+        verification = verify_mp3(
+            output,
+            log,
+            min_duration_seconds=args.min_duration,
+        )
+        status = "completed"
     result = {
-        "status": "completed",
-        "target_short_id": short_id,
+        "status": status,
+        "target_platform": target.platform,
+        "target_id": target.target_id,
         "target_sha256_12": hashlib.sha256(link.encode("utf-8")).hexdigest()[:12],
         "storage_namespace": isolation["namespace"],
         "output": str(output),
@@ -211,6 +356,8 @@ def _cmd_run_private(args: argparse.Namespace) -> int:
         "started_at": started_at,
         "finished_at": datetime.now().astimezone().isoformat(timespec="seconds"),
     }
+    if target.platform == "weixin":
+        result["target_short_id"] = target.target_id
     result_path = artifacts / "public-result.json"
     result_path.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
     try:
@@ -333,10 +480,11 @@ def cmd_record(args: argparse.Namespace) -> int:
     if args.duration <= 0 or args.speed <= 0:
         raise ValueError("--duration and --speed must be positive.")
 
-    link, short_id = canonical_link(args.url)
+    target = classify_link(args.url)
+    link = target.url
     resolved_profile = activate_profile(args.profile)
     ensure_profile_layout(resolved_profile)
-    output = output_path(short_id, args.output, resolved_profile)
+    output = target_output_path(target, args.output, resolved_profile)
     prepare_output_parent(output, managed_default=not bool(args.output))
     if str(ROOT) not in sys.path:
         sys.path.insert(0, str(ROOT))
@@ -367,7 +515,8 @@ def cmd_record(args: argparse.Namespace) -> int:
     result = {
         "status": "completed",
         "route": "explicit_audio_recording_fallback",
-        "target_short_id": short_id,
+        "target_platform": target.platform,
+        "target_id": target.target_id,
         "capture_backend": report.get("capture_backend"),
         "recorded_wall_seconds": args.duration,
         "confirmed_playback_speed": args.speed,
@@ -375,6 +524,8 @@ def cmd_record(args: argparse.Namespace) -> int:
         "output_bytes": int(verification.get("bytes") or 0),
         "duration_seconds": verification.get("duration_seconds"),
     }
+    if target.platform == "weixin":
+        result["target_short_id"] = target.target_id
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0
 
@@ -385,7 +536,7 @@ def parser() -> argparse.ArgumentParser:
     check = commands.add_parser("preflight", help="Read-only prerequisite check")
     check.add_argument("--profile", default="")
     check.set_defaults(func=cmd_preflight)
-    run = commands.add_parser("run", help="Convert one authorized Weixin link")
+    run = commands.add_parser("run", help="Convert one authorized replay, video, or media link")
     run.add_argument("url")
     run.add_argument("--output", default="")
     run.add_argument("--min-duration", type=float, default=1.0)

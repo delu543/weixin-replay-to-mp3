@@ -12,11 +12,20 @@ import subprocess
 import sys
 import tempfile
 import urllib.parse
+import urllib.request
 from pathlib import Path
 from typing import Any, Optional
 
 
 ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from replay_mp3_studio.web_tools import (  # noqa: E402
+    javascript_runtime_arguments,
+    yt_dlp_command,
+)
+
 URL_RE = re.compile(r"https?://[^\s\"'<>]+")
 MEDIA_EXTS = (
     ".m3u8",
@@ -49,18 +58,22 @@ def is_media_url(url: str) -> bool:
 
 def script_kind(url: str) -> str:
     parsed = urllib.parse.urlparse(url)
-    host = parsed.netloc.lower().removeprefix("www.")
+    host = (parsed.hostname or "").lower().rstrip(".")
+    if parsed.scheme not in {"http", "https"} or not host:
+        return ""
     if is_media_url(url):
         return "direct_media"
-    if host == "youtu.be" or host.endswith("youtube.com"):
+    if host == "youtu.be" or host == "youtube.com" or host.endswith(".youtube.com"):
         return "youtube"
-    return ""
+    if host == "x.com" or host == "twitter.com" or host.endswith(".twitter.com"):
+        return "x"
+    return "yt_dlp"
 
 
 def missing_script_message(url: str) -> str:
     parsed = urllib.parse.urlparse(url)
     host = parsed.netloc or "unknown"
-    return f"缺少该脚本：当前没有可处理 {host} 的脚本。"
+    return f"无法处理 {host}：只接受 http/https 媒体或网页链接。"
 
 
 def write_report(path: Path, payload: dict[str, Any]) -> None:
@@ -108,7 +121,10 @@ def normalize_proxy(value: str) -> str:
 
 def system_proxy_url() -> str:
     if sys.platform != "darwin":
-        return ""
+        proxies = urllib.request.getproxies()
+        return normalize_proxy(
+            str(proxies.get("https") or proxies.get("http") or proxies.get("all") or "")
+        )
     try:
         proc = subprocess.run(
             ["scutil", "--proxy"],
@@ -155,22 +171,6 @@ def run_direct_media(url: str, output: Path) -> None:
     subprocess.run([sys.executable, str(script), url, "--output", str(output)], check=True)
 
 
-def yt_dlp_command() -> list[str]:
-    env = os.environ.get("YT_DLP")
-    if env and Path(env).exists():
-        return [env]
-    found = shutil.which("yt-dlp")
-    if found:
-        return [found]
-    venv_script = ROOT / "work" / "venv" / "bin" / "yt-dlp"
-    if venv_script.exists():
-        return [str(venv_script)]
-    venv_python = ROOT / "work" / "venv" / "bin" / "python"
-    if venv_python.exists():
-        return [str(venv_python), "-m", "yt_dlp"]
-    return [sys.executable, "-m", "yt_dlp"]
-
-
 def find_ffmpeg() -> str:
     env = os.environ.get("FFMPEG")
     if env and Path(env).exists():
@@ -203,6 +203,7 @@ def youtube_attempt_command(
 ) -> list[str]:
     command = [
         *yt_dlp_command(),
+        *javascript_runtime_arguments(ROOT),
         "--no-playlist",
         "--force-overwrites",
         "--force-ipv4",
@@ -247,6 +248,7 @@ def run_text_command(command: list[str], timeout: int = 90) -> tuple[int, str, s
 def youtube_metadata(url: str, proxy: str = "") -> dict[str, Any]:
     command = [
         *yt_dlp_command(),
+        *javascript_runtime_arguments(ROOT),
         "--no-playlist",
         "--skip-download",
         "--dump-json",
@@ -306,6 +308,7 @@ def youtube_metadata(url: str, proxy: str = "") -> dict[str, Any]:
 def youtube_cdn_probe(url: str, proxy: str = "") -> dict[str, Any]:
     command = [
         *yt_dlp_command(),
+        *javascript_runtime_arguments(ROOT),
         "--no-playlist",
         "-f",
         "18/bestaudio/best",
@@ -332,8 +335,18 @@ def youtube_cdn_probe(url: str, proxy: str = "") -> dict[str, Any]:
         return result
     parsed = urllib.parse.urlparse(media_url)
     result["media_url_host"] = parsed.netloc
+    curl_executable = shutil.which("curl")
+    if not curl_executable:
+        result.update(
+            {
+                "curl_returncode": None,
+                "curl_summary": "curl_unavailable_probe_skipped",
+                "curl_stderr_tail": "",
+            }
+        )
+        return result
     curl_cmd = [
-        "curl",
+        curl_executable,
         "-L",
         "--range",
         "0-2047",
@@ -457,6 +470,75 @@ def run_youtube(url: str, output: Path, sample_seconds: int = 0, proxy_mode: str
     )
 
 
+def run_ytdlp_site(
+    url: str,
+    output: Path,
+    *,
+    kind: str,
+    sample_seconds: int = 0,
+    proxy_mode: str = "auto",
+) -> dict[str, Any]:
+    output.parent.mkdir(parents=True, exist_ok=True)
+    ffmpeg = find_ffmpeg()
+    failures: list[dict[str, Any]] = []
+    proxies = youtube_proxy_candidates(proxy_mode)
+    for proxy in proxies:
+        with tempfile.TemporaryDirectory(prefix=f"other-{kind}-") as tmp:
+            template = str(Path(tmp) / "download.%(ext)s")
+            command = youtube_attempt_command(
+                url,
+                template,
+                "",
+                ffmpeg,
+                sample_seconds,
+                proxy=proxy,
+            )
+            try:
+                proc = subprocess.run(command, text=True, capture_output=True, check=False)
+            except OSError as exc:
+                failures.append(
+                    {
+                        "provider": kind,
+                        "proxy": display_arg(proxy) if proxy else "direct",
+                        "command": redact_command(command),
+                        "error": str(exc),
+                    }
+                )
+                continue
+            attempt = {
+                "provider": kind,
+                "proxy": display_arg(proxy) if proxy else "direct",
+                "returncode": proc.returncode,
+                "command": redact_command(command),
+                "stdout_tail": tail_text(redact_text(proc.stdout or "", [url, proxy])),
+                "stderr_tail": tail_text(redact_text(proc.stderr or "", [url, proxy])),
+            }
+            if proc.returncode == 0:
+                mp3s = sorted(Path(tmp).glob("download*.mp3"))
+                if mp3s:
+                    if output.exists():
+                        output.unlink()
+                    shutil.move(str(mp3s[0]), str(output))
+                    return {
+                        "provider": kind,
+                        "proxy": display_arg(proxy) if proxy else "direct",
+                        "ffmpeg": ffmpeg,
+                        "sample_seconds": sample_seconds,
+                        "attempts": failures + [attempt],
+                    }
+                attempt["error"] = "yt-dlp finished without producing MP3"
+            failures.append(attempt)
+    raise ConversionError(
+        f"{kind} 链接未能下载为 MP3；工具未自动读取浏览器 Cookie、Token 或账号凭据。",
+        {
+            "provider": kind,
+            "ffmpeg": ffmpeg,
+            "sample_seconds": sample_seconds,
+            "attempts": failures,
+        },
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("url")
@@ -494,6 +576,14 @@ def main() -> int:
             run_direct_media(args.url, output)
         elif kind == "youtube":
             details = run_youtube(args.url, output, sample_seconds=args.sample_seconds, proxy_mode=args.proxy)
+        elif kind in {"x", "yt_dlp"}:
+            details = run_ytdlp_site(
+                args.url,
+                output,
+                kind=kind,
+                sample_seconds=args.sample_seconds,
+                proxy_mode=args.proxy,
+            )
         else:
             print(missing_script_message(args.url))
             return 3

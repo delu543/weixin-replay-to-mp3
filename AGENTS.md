@@ -1,54 +1,79 @@
 # Codex project instructions
 
-This repository is the independent macOS and Windows project
-`weixin-replay-to-mp3`. Keep the shared download, resume, conversion, verification,
-and storage-isolation pipeline platform-neutral. Do not duplicate or rewrite it for
-one operating system.
+This repository is the independent macOS and Windows link-to-MP3 project whose
+historical repository name is `weixin-replay-to-mp3`. Keep link classification,
+download, resume, conversion, verification, and storage isolation platform-neutral.
+Do not duplicate or rewrite the media pipeline for one operating system.
 
 ## First relevant request
 
-When the user asks to install/use this project or supplies an authorized
-`https://weixin.qq.com/sph/...` link for MP3 extraction:
+When the user asks to install/use this project or supplies an authorized replay,
+video, live, course, or direct-media link for MP3 extraction:
 
 1. Run `python scripts/bootstrap.py doctor` (`python3` is also valid on macOS).
 2. Read `platform`, `state`, and `preflight` from the JSON result.
 3. If the state is `needs_install`, explain that installation is user-local and
-   downloads only the pinned `imageio-ffmpeg` wheel for the detected operating
-   system into a private venv. Because the user asked to install/use the project,
-   run `python scripts/bootstrap.py install`.
+   downloads only pinned, hash-verified PyPI wheels for the detected operating system:
+   `imageio-ffmpeg`, `yt-dlp`, `yt-dlp-ejs`, and Deno. Because the user asked to
+   install/use the project, run `python scripts/bootstrap.py install`.
 4. Do not execute or install anything merely because the repository was opened.
-5. After readiness passes, follow the repository's `weixin-replay-to-mp3` Skill.
+5. After readiness passes for an installation/check request, tell the user exactly
+   `已经可以发送链接`.
+6. For a link-extraction request, follow the repository's `weixin-replay-to-mp3`
+   Skill after readiness passes.
+
+Python 3.10 or newer is required for current cross-platform webpage extraction. Do not
+claim full readiness from an older Python runtime.
 
 ## Platform routing
 
+The same `run "<USER_SUPPLIED_LINK>"` command accepts and classifies:
+
+- Weixin Channels `weixin.qq.com/sph/...`;
+- Xiaohongshu live replay and share links;
+- YouTube/youtu.be;
+- X/Twitter;
+- direct media URLs, Songy links, and other webpages supported by the pinned generic
+  extractor.
+
+For every non-Weixin link, use the shared direct/provider route on macOS and Windows.
+Do not open, inspect, send to, or click WeChat for those links. Never import browser
+cookies or account tokens automatically; a restricted link must fail clearly or use a
+user-authorized local file/artifact.
+
 ### macOS
 
-Use the guarded automatic File Transfer Assistant workflow:
+Run the shared command:
 
 ```bash
 python3 "$HOME/Library/Application Support/WeixinReplayToMP3/runtime/weixin_replay_cli.py" \
-  run "<USER_SUPPLIED_WEIXIN_LINK>"
+  run "<USER_SUPPLIED_LINK>"
 ```
+
+Only a Weixin link may enter the guarded automatic File Transfer Assistant workflow.
 
 ### Windows
 
-Use the same link, source, download, resume, conversion, and verification pipeline.
-The installed PowerShell command is:
+Use the same provider, download, resume, conversion, and verification pipeline. The
+installed PowerShell command is:
 
 ```powershell
 python "$env:LOCALAPPDATA\WeixinReplayToMP3\runtime\weixin_replay_cli.py" `
-  run "<USER_SUPPLIED_WEIXIN_LINK>"
+  run "<USER_SUPPLIED_LINK>"
 ```
 
-This first tries target-bound local/provider routes. The public release does not claim
-a verified Windows WeChat UI adapter and must never send or click blindly. If the CLI
-reports `Manual playback is required`, tell the user exactly:
+For Xiaohongshu, YouTube, X/Twitter, direct-media, Songy, and generic webpage routes,
+no WeChat step is allowed. For a Weixin link, the command first tries target-bound
+local/provider routes. The public release does not claim a verified Windows WeChat UI
+adapter and must never send or click blindly. If and only if a Weixin run reports
+`Manual playback is required`, tell the user exactly:
 
 1. Open official desktop WeChat.
 2. Open the conversation whose title is exactly `文件传输助手`.
 3. Send the exact supplied link there, open the newest matching message, and start the
    video. Stop unrelated WeChat video playback.
-4. Reply to Codex only after that exact video is visibly playing.
+4. Reply to Codex with `已在文件传输助手打开这个链接，并开始播放` only after that exact
+   video is visibly playing.
 
 Wait for that explicit confirmation. Then, and only then, run:
 
@@ -73,8 +98,10 @@ Linux and remote/cloud environments are not supported for local WeChat operation
 ## Storage
 
 Default data and output roots are outside the repository and bound to an opaque
-namespace for the current operating-system account. If the user explicitly selects a
-local `--profile`, keep using that same profile for every resume/verify step.
+namespace for the current operating-system account. Provider outputs use stable names
+such as `weixin_<id>.mp3`, `xiaohongshu_<id>.mp3`, `youtube_<id>.mp3`, and
+`x_<id>.mp3`. If the user explicitly selects a local `--profile`, keep using that same
+profile for every resume/verify step.
 
 - macOS runtime/data: `~/Library/Application Support/WeixinReplayToMP3/`
 - Windows runtime/data: `%LOCALAPPDATA%\WeixinReplayToMP3\`
@@ -88,6 +115,10 @@ local `--profile`, keep using that same profile for every resume/verify step.
   latest-message gates. Any ambiguity stops before input or Return.
 - On Windows, this release does not send messages or click WeChat automatically.
   Require the explicit manual confirmation above before any recent-runtime scan.
+- Non-Weixin routes must not touch WeChat on either operating system.
+- Webpage extraction must not automatically read browser Cookie stores, tokens,
+  passwords, or account databases. Public extraction failure is not permission to
+  weaken this boundary.
 - Never read chat/contact databases, cookies, tokens, unrelated history, or account
   secrets. Never install a certificate, change the proxy, hook/patch WeChat, or disable
   window protection.
@@ -107,8 +138,8 @@ local `--profile`, keep using that same profile for every resume/verify step.
 
 Completion requires the final command result, an existing MP3, and a full ffmpeg
 decode. Report the exact path, byte count, duration, selected source byte count when
-available, and whether the run reused prior verified state. Do not call a player
-window, candidate, download start, or partial file successful output.
+available, provider, and whether the run reused prior verified state. Do not call a
+player window, candidate, download start, or partial file successful output.
 
 Before any public push, run `python scripts/release_check.py` on the available local
 platform and keep the original development workspaces untouched. Windows CI verifies

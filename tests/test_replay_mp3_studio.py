@@ -370,9 +370,14 @@ class ReplayMp3StudioTests(unittest.TestCase):
 
     def test_other_script_routing(self) -> None:
         self.assertEqual(other_script_kind("https://youtu.be/dQw4w9WgXcQ"), "youtube")
+        self.assertEqual(other_script_kind("https://x.com/example/status/123"), "x")
         self.assertEqual(other_script_kind("https://cdn.example.test/audio.mp3"), "direct_media")
-        self.assertEqual(other_script_kind("https://example.test/article/123"), "")
-        self.assertIn("缺少该脚本", missing_other_script_message("https://example.test/article/123"))
+        self.assertEqual(other_script_kind("https://example.test/article/123"), "yt_dlp")
+        self.assertEqual(other_link_module.script_kind("https://x.com/example/status/123"), "x")
+        self.assertEqual(other_script_kind("https://notyoutube.com/watch?v=one"), "yt_dlp")
+        self.assertEqual(other_link_module.script_kind("https://notyoutube.com/watch?v=one"), "yt_dlp")
+        self.assertEqual(other_script_kind("ftp://example.test/file"), "")
+        self.assertIn("只接受", missing_other_script_message("ftp://example.test/file"))
 
     def test_youtube_command_uses_local_ffmpeg_and_format_fallback(self) -> None:
         command = other_link_module.youtube_attempt_command(

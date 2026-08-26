@@ -119,8 +119,19 @@ def child_env() -> dict[str, str]:
     return env
 
 
+def display_command_arg(value: str) -> str:
+    parsed = urllib.parse.urlsplit(str(value))
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        return str(value)
+    host = parsed.hostname or ""
+    port = f":{parsed.port}" if parsed.port else ""
+    netloc = f"<auth>@{host}{port}" if parsed.username else parsed.netloc
+    base = urllib.parse.urlunsplit((parsed.scheme, netloc, parsed.path, "", ""))
+    return f"{base}?<redacted>" if parsed.query else base
+
+
 def run_streaming(cmd: list[str], log, cwd: Path = PROJECT_ROOT) -> int:
-    log("+ " + " ".join(cmd))
+    log("+ " + " ".join(display_command_arg(part) for part in cmd))
     proc = subprocess.Popen(
         cmd,
         cwd=str(cwd),

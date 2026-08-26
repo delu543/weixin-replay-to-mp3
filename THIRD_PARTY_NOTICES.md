@@ -21,6 +21,22 @@ On Windows, the explicit recording fallback can address an existing DirectShow a
 input. The repository does not bundle, install, or enable a loopback/virtual-audio
 driver.
 
+## yt-dlp and EJS
+
+The installer downloads the pure-Python `yt-dlp==2026.8.19` wheel and the local
+`yt-dlp-ejs==0.8.0` challenge-script wheel from PyPI using pinned SHA-256 hashes on
+both macOS and Windows. They are used for public YouTube, X/Twitter, and generic
+webpage extraction without automatic browser-cookie import. yt-dlp is distributed
+under the Unlicense; the EJS wheel contains Unlicense, MIT, and ISC components. See
+<https://github.com/yt-dlp/yt-dlp> and <https://github.com/yt-dlp/ejs>.
+
+## Deno
+
+The installer downloads the platform-specific `deno==2.9.5` PyPI wheel using pinned
+SHA-256 hashes. Its executable is used only as yt-dlp's restricted JavaScript runtime;
+it is not a downloader and is not committed to this repository. Deno is MIT licensed.
+See <https://deno.com/>.
+
 ## ISAAC / ISAAC64
 
 The numeric-key compatibility implementation uses the ISAAC64 algorithm. Bob Jenkins'

@@ -2,7 +2,10 @@
 
 ## Supported security model
 
-- Official desktop WeChat, the current OS account, and one supplied short link.
+- The current OS account and one supplied authorized link. Official desktop WeChat is
+  required only for Weixin Channels.
+- Xiaohongshu, YouTube, X/Twitter, Songy, direct-media, and generic webpage routes use
+  the same bounded classifier and media verification pipeline on macOS and Windows.
 - macOS: fail-closed File Transfer Assistant verification before input or Return.
 - Windows: no automatic WeChat sending/clicking in this release; the bounded recent
   runtime scan requires explicit user-confirmed exact-link playback.
@@ -11,6 +14,8 @@
 - User-local installation with no root/administrator privileges.
 - Opaque per-user/profile namespace; macOS private modes and Windows LocalAppData/NTFS
   account boundary.
+- Pinned, hash-verified FFmpeg, yt-dlp, EJS, and Deno packages installed only after an
+  explicit install/use request.
 
 ## Explicitly excluded
 
@@ -18,6 +23,8 @@
 - System proxy changes, TUN drivers, or global traffic interception.
 - WeChat hooks, injection, package modification, jailbreak, or protection disabling.
 - Chat/contact database reads or credential extraction.
+- Automatic browser-cookie, login-database, Keychain, Credential Manager, or account-
+  token import for webpage extraction.
 - Blind Windows UI coordinates or sending to an unverified chat.
 - Opaque third-party downloader executables.
 - Silent remote upload or telemetry.
@@ -43,8 +50,9 @@ repository owner through a private channel first.
 ## Limitations
 
 This is source tooling, not a signed/notarized consumer app. Official WeChat UI and
-runtime layouts, CDN behavior, OS permissions, and platform policy can change. Safety
-gates stop when evidence is missing; they cannot guarantee every external link remains
+runtime layouts, external website extractors, CDN behavior, OS permissions, login/
+region/DRM policy, and platform terms can change. Safety gates stop when evidence is
+missing; support for a provider route cannot guarantee every individual link remains
 extractable.
 
 macOS automatic UI/capture has real-machine evidence. Windows path/install routing,
