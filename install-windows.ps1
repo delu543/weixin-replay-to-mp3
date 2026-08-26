@@ -226,7 +226,7 @@ try {
         git_required = $false
         ffmpeg_strategy = "pinned_private_runtime"
     } | ConvertTo-Json -Depth 4
-    Write-Output "已经可以发送链接"
+    Write-Output "READY: you can send a link now"
     exit 0
 }
 catch {
