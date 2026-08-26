@@ -157,11 +157,11 @@ def under_watch_root(path: str) -> bool:
         target = Path(path).expanduser()
     except Exception:
         return False
-    text = str(target)
+    text = str(target).replace("\\", "/")
     if "com.tencent.xinWeChat/Data/tmp" in text:
         return True
     for root in WATCH_ROOTS:
-        root_text = str(root)
+        root_text = str(root).replace("\\", "/").rstrip("/")
         if text == root_text or text.startswith(root_text + "/"):
             return True
     return False

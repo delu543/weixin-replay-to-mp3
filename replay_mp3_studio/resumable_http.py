@@ -15,10 +15,49 @@ from typing import Any, Callable, Optional
 USER_AGENT = "replay-mp3-studio/1.0"
 CONTENT_RANGE_RE = re.compile(r"bytes\s+(\d+)-(\d+)/(\d+|\*)", re.I)
 RangeReader = Callable[[str, int, int, int], tuple[bytes, int, Optional[int]]]
+_PWRITE = getattr(os, "pwrite", None)
 
 
 class RangeUnsupportedError(RuntimeError):
     pass
+
+
+def _write_at(
+    fd: int,
+    data: bytes,
+    offset: int,
+    *,
+    seek_lock: threading.Lock | None = None,
+) -> None:
+    """Write a complete buffer at an offset on POSIX and Windows.
+
+    POSIX pwrite does not mutate the shared file position. Windows has no pwrite,
+    so its seek/write fallback must be serialized while range downloads remain
+    parallel on the network side.
+    """
+
+    view = memoryview(data)
+    written_total = 0
+    if _PWRITE is not None:
+        while written_total < len(view):
+            written = _PWRITE(fd, view[written_total:], offset + written_total)
+            if written <= 0:
+                raise OSError("Offset write returned without making progress.")
+            written_total += written
+        return
+
+    if seek_lock is not None:
+        seek_lock.acquire()
+    try:
+        os.lseek(fd, offset, os.SEEK_SET)
+        while written_total < len(view):
+            written = os.write(fd, view[written_total:])
+            if written <= 0:
+                raise OSError("Seek/write fallback returned without making progress.")
+            written_total += written
+    finally:
+        if seek_lock is not None:
+            seek_lock.release()
 
 
 def read_http_range(url: str, start: int, end: int, timeout: int = 90) -> tuple[bytes, int, int | None]:
@@ -209,7 +248,7 @@ def download_by_ranges(
                 with legacy.open("rb") as source:
                     offset = 0
                     for block in iter(lambda: source.read(4 * 1024 * 1024), b""):
-                        os.pwrite(fd, block, offset)
+                        _write_at(fd, block, offset)
                         offset += len(block)
                 os.fsync(fd)
         finally:
@@ -257,6 +296,7 @@ def download_by_ranges(
         cursor = end + 1
 
     lock = threading.Lock()
+    file_lock = threading.Lock()
     downloaded_bytes = 0
     retry_count = 0
     fd = os.open(part, os.O_RDWR)
@@ -267,7 +307,7 @@ def download_by_ranges(
         data, retries = _fetch_span(
             range_reader, url, start, end, expected_size, max_retries
         )
-        os.pwrite(fd, data, start)
+        _write_at(fd, data, start, seek_lock=file_lock)
         digest = hashlib.sha256(data).hexdigest()
         with lock:
             ranges[f"{start}-{end}"] = digest

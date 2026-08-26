@@ -288,7 +288,7 @@ def find_reusable_songy_artifact(
                 matches.append(path)
     if not matches:
         return None
-    return max(matches, key=lambda item: item.stat().st_mtime_ns)
+    return max(matches, key=lambda item: (item.stat().st_mtime_ns, str(item)))
 
 
 def find_reusable_songy_mp3(url: str, project_root: Path = PROJECT_ROOT) -> Path | None:
