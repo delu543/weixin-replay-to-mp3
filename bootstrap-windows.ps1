@@ -119,14 +119,18 @@ function Invoke-UrlDownload {
                     throw "the explicit Python executable is unavailable"
                 }
                 $headerJson = $Headers | ConvertTo-Json -Compress
+                $headerBase64 = [System.Convert]::ToBase64String(
+                    [System.Text.Encoding]::UTF8.GetBytes($headerJson)
+                )
                 $code = @'
-import json, shutil, sys, urllib.request
-url, output, headers_json = sys.argv[1:4]
-request = urllib.request.Request(url, headers=json.loads(headers_json))
+import base64, json, shutil, sys, urllib.request
+url, output, headers_base64 = sys.argv[1:4]
+headers = json.loads(base64.b64decode(headers_base64).decode("utf-8"))
+request = urllib.request.Request(url, headers=headers)
 with urllib.request.urlopen(request, timeout=45) as response, open(output, "wb") as target:
     shutil.copyfileobj(response, target)
 '@
-                & $PythonExecutable -c $code $Url $OutputPath $headerJson
+                & $PythonExecutable -c $code $Url $OutputPath $headerBase64
                 if ($LASTEXITCODE -ne 0) { throw "Python downloader exit code $LASTEXITCODE" }
             }
             elseif ($client -eq "Bits") {
