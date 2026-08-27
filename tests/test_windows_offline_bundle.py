@@ -88,7 +88,7 @@ class WindowsOfflineBundleTests(unittest.TestCase):
                 archive.writestr("imageio_ffmpeg/binaries/ffmpeg-test.exe", b"ffmpeg")
                 archive.writestr("yt_dlp/__main__.py", b"print('test')\n")
                 archive.writestr("yt_dlp_ejs/__init__.py", b"")
-                archive.writestr("deno/bin/deno.exe", b"deno")
+                archive.writestr("deno-2.9.5.data/scripts/deno.exe", b"deno")
             site_packages = root / "site-packages"
             scripts = root / "Scripts"
             result = install_offline_wheels.extract_wheels(

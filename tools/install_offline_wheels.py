@@ -57,17 +57,19 @@ def extract_wheels(wheels: list[Path], site_packages: Path, scripts: Path) -> di
                 written.add(resolved)
                 extracted += 1
 
-    deno_candidates = sorted(site_packages.rglob("deno.exe"))
-    if len(deno_candidates) != 1:
-        raise RuntimeError("the fixed Deno wheel did not contain exactly one deno.exe")
-    shutil.copy2(deno_candidates[0], scripts / "deno.exe")
+    deno_script = scripts / "deno.exe"
+    if not deno_script.is_file():
+        deno_candidates = sorted(site_packages.rglob("deno.exe"))
+        if len(deno_candidates) != 1:
+            raise RuntimeError("the fixed Deno wheel did not contain exactly one deno.exe")
+        shutil.copy2(deno_candidates[0], deno_script)
 
     ffmpeg = sorted(site_packages.glob("imageio_ffmpeg/binaries/ffmpeg-*.exe"))
     required = {
         "ffmpeg": len(ffmpeg) == 1,
         "yt_dlp": (site_packages / "yt_dlp" / "__main__.py").is_file(),
         "yt_dlp_ejs": any(site_packages.glob("yt_dlp_ejs*")),
-        "deno": (scripts / "deno.exe").is_file(),
+        "deno": deno_script.is_file(),
     }
     if not all(required.values()):
         raise RuntimeError(f"portable dependency verification failed: {required}")

@@ -9,7 +9,7 @@ param(
     [string]$Destination = "",
     [string]$LocalArtifact = "",
     [string]$GitHubApiUrl = "https://api.github.com/repos/delu543/weixin-replay-to-mp3/contents/install-windows.ps1?ref=v0.5.0",
-    [string]$GitBlobApiUrl = "https://api.github.com/repos/delu543/weixin-replay-to-mp3/git/blobs/78aaa40444b5590eee65a62f518f50fd3e15b57e",
+    [string]$GitBlobApiUrl = "https://api.github.com/repos/delu543/weixin-replay-to-mp3/git/blobs/07654535786d90ab35a9ed9f2cd3904b190c545a",
     [string]$ReleaseAssetUrl = "https://github.com/delu543/weixin-replay-to-mp3/releases/download/v0.5.0/install-windows.ps1",
     [string]$CodeloadUrl = "https://codeload.github.com/delu543/weixin-replay-to-mp3/zip/refs/tags/v0.5.0"
 )
@@ -19,9 +19,9 @@ $ErrorActionPreference = "Stop"
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 $InstallerVersion = "0.5.0"
-$ExpectedInstallerBytes = 1534566
-$ExpectedInstallerSha256 = "99a213fa8c24f21c538c7e06d34456426457182e7cc741479f19fb3d03267e32"
-$ExpectedInstallerGitBlobSha = "78aaa40444b5590eee65a62f518f50fd3e15b57e"
+$ExpectedInstallerBytes = 1534659
+$ExpectedInstallerSha256 = "dfa4051a960228447099e765c65866b32a2a49d0a1b868ce7ed64392572a14f3"
+$ExpectedInstallerGitBlobSha = "07654535786d90ab35a9ed9f2cd3904b190c545a"
 $ApiHeaders = @{
     Accept = "application/vnd.github.raw+json"
     "X-GitHub-Api-Version" = "2022-11-28"
