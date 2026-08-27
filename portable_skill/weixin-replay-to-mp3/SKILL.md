@@ -23,17 +23,25 @@ Do not install or run merely because the repository was opened. Full multi-platf
 web-link support requires Python 3.10 or newer. The pinned user-local runtime includes
 FFmpeg, yt-dlp, local EJS assets, and Deno for both macOS and Windows.
 
-If Windows lacks Python, the installer uses `winget` to install user-local Python 3.12
-and continues. If Git, its HTTPS remote helper, GitHub, or raw GitHub is unavailable,
-download the fixed self-contained installer from
-`https://cdn.jsdelivr.net/gh/delu543/weixin-replay-to-mp3@v0.4.1/install-windows.ps1`.
-It SHA-256-verifies and expands its own embedded source, so it must not request a
-repository ZIP afterward. If that CDN is unavailable, try the same path on
-`fastly.jsdelivr.net` and `gcore.jsdelivr.net`; if all are blocked, ask for transfer of
-that one installer file, not the repository. Do not stop after merely listing missing
-Python, FFmpeg, or Git, and do not describe native Windows as
-`unsupported_platform`. If the agent is running in WSL/Linux, switch the Codex app's
-agent environment to Windows native for this tool.
+On Windows, use `bootstrap-windows.ps1` for first acquisition. If the Codex desktop
+workspace-dependency tool is available, obtain its exact bundled Windows Python path
+and pass it with `-PythonExecutable`; never guess or expose unrelated paths. The
+bootstrap tries the fixed `v0.4.2` installer through the public GitHub Contents API,
+base64 Git blob, Release Asset, codeload archive, and three jsDelivr hosts. It can use
+PowerShell, curl, or the explicit Python downloader. Every result must match the fixed
+byte count and SHA-256 before execution.
+
+If terminal downloads fail but the in-app browser can render the repository, read the
+complete small `bootstrap-windows.ps1` source through that browser, write it exactly to
+the local workspace, verify its checksum from `docs/WINDOWS_INSTALL.md`, and run it.
+A browser-saved fixed installer or tagged ZIP can be passed with `-LocalArtifact`; the
+bootstrap extracts only the root installer and verifies it. Do not ask the user to
+transfer files until GitHub API through bundled Python, Git blob, Release Asset,
+codeload, jsDelivr, and browser-local artifact paths have produced bounded failure
+evidence. If no compatible Python is available, the installer uses user-local
+`winget`. Do not stop after merely listing missing Python, FFmpeg, or Git, and do not
+describe native Windows as `unsupported_platform`. WSL/Linux must be switched to the
+Codex app's Windows-native environment for this tool.
 
 ## Safety boundary
 

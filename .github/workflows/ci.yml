@@ -35,21 +35,51 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Check zero-prerequisite Windows bootstrap entry
+      - name: Acquire installer through independent Windows routes
         shell: pwsh
         run: |
+          $python = (Get-Command python.exe -ErrorAction Stop).Source
           $local = powershell.exe -NoProfile -ExecutionPolicy Bypass `
-            -File .\install-windows.ps1 -CheckOnly | ConvertFrom-Json
+            -File .\install-windows.ps1 -CheckOnly -PythonExecutable $python | ConvertFrom-Json
           if ($local.status -ne "checked" -or $local.platform -ne "Windows") {
             throw "Local Windows installer check failed"
           }
-          $standalone = Join-Path $env:RUNNER_TEMP "install-windows.ps1"
-          Copy-Item .\install-windows.ps1 $standalone
+          if ($local.python_strategy -ne "explicit_codex_or_user_runtime") {
+            throw "Explicit bundled/user Python route was not selected"
+          }
+          $acquisition = Join-Path $env:RUNNER_TEMP "bootstrap-only"
+          New-Item -ItemType Directory -Path $acquisition -Force | Out-Null
+          $bootstrap = Join-Path $acquisition "bootstrap-windows.ps1"
+          Copy-Item .\bootstrap-windows.ps1 $bootstrap
+          $standalone = Join-Path $acquisition "install-windows-api.ps1"
+          $apiUrl = "https://api.github.com/repos/$env:GITHUB_REPOSITORY/contents/install-windows.ps1?ref=$env:GITHUB_SHA"
+          $apiOutput = powershell.exe -NoProfile -ExecutionPolicy Bypass `
+            -File $bootstrap -AcquireOnly -Transport GitHubApi -DownloadClient Python `
+            -PythonExecutable $python -GitHubApiUrl $apiUrl -Destination $standalone
+          if ($LASTEXITCODE -ne 0) { throw "GitHub API acquisition failed" }
+          $apiResult = $apiOutput | ConvertFrom-Json
+          if ($apiResult.status -ne "acquired" -or $apiResult.transport -ne "github_api/Python") {
+            throw "GitHub API did not use the explicit Python acquisition path"
+          }
+          $codeloadInstaller = Join-Path $acquisition "install-windows-codeload.ps1"
+          $codeloadUrl = "https://codeload.github.com/$env:GITHUB_REPOSITORY/zip/$env:GITHUB_SHA"
+          $codeloadOutput = powershell.exe -NoProfile -ExecutionPolicy Bypass `
+            -File $bootstrap -AcquireOnly -Transport Codeload -DownloadClient PowerShell `
+            -CodeloadUrl $codeloadUrl -Destination $codeloadInstaller
+          if ($LASTEXITCODE -ne 0) { throw "codeload acquisition failed" }
+          $codeloadResult = $codeloadOutput | ConvertFrom-Json
+          if ($codeloadResult.status -ne "acquired" -or
+              $codeloadResult.transport -ne "codeload/PowerShell") {
+            throw "codeload did not produce the fixed installer"
+          }
+          if ((Get-FileHash $standalone).Hash -ne (Get-FileHash $codeloadInstaller).Hash) {
+            throw "Independent acquisition routes returned different bytes"
+          }
           $remote = powershell.exe -NoProfile -ExecutionPolicy Bypass `
-            -File $standalone -CheckOnly | ConvertFrom-Json
+            -File $standalone -CheckOnly -PythonExecutable $python | ConvertFrom-Json
           if ($remote.source_strategy -ne "embedded_verified_bundle" -or
               $remote.git_required -or $remote.github_source_required -or
-              -not $remote.embedded_source_ready -or $remote.embedded_source_version -ne "0.4.1") {
+              -not $remote.embedded_source_ready -or $remote.embedded_source_version -ne "0.4.2") {
             throw "Self-contained Windows installer check failed"
           }
       - name: Run standalone installer and regression gate
@@ -63,8 +93,10 @@ jobs:
           $env:USERPROFILE = Join-Path $isolated "profile"
           $env:HOME = $env:USERPROFILE
           New-Item -ItemType Directory -Path $env:LOCALAPPDATA, $env:USERPROFILE -Force | Out-Null
-          $standalone = Join-Path $env:RUNNER_TEMP "install-windows.ps1"
-          $installOutput = powershell.exe -NoProfile -ExecutionPolicy Bypass -File $standalone 2>&1
+          $standalone = Join-Path $env:RUNNER_TEMP "bootstrap-only\install-windows-api.ps1"
+          $python = (Get-Command python.exe -ErrorAction Stop).Source
+          $installOutput = powershell.exe -NoProfile -ExecutionPolicy Bypass `
+            -File $standalone -PythonExecutable $python 2>&1
           $installExit = $LASTEXITCODE
           $installOutput | ForEach-Object { Write-Host $_ }
           if ($installExit -ne 0) {

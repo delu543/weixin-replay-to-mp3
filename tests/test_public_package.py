@@ -9,7 +9,7 @@ from unittest import mock
 
 import weixin_replay_cli as cli
 from replay_mp3_studio import config, fast_pipeline, user_storage
-from scripts import bootstrap, build_windows_installer, release_check
+from scripts import bootstrap, build_windows_bootstrap, build_windows_installer, release_check
 
 
 class PublicPackageTests(unittest.TestCase):
@@ -211,6 +211,9 @@ class PublicPackageTests(unittest.TestCase):
     def test_windows_zero_prerequisite_installer_is_safe_and_git_optional(self) -> None:
         script = (bootstrap.SOURCE_ROOT / "install-windows.ps1").read_text(encoding="utf-8")
         self.assertIn("Python.Python.3.12", script)
+        self.assertIn('[string]$PythonExecutable = ""', script)
+        self.assertIn("explicit_codex_or_user_runtime", script)
+        self.assertIn("import platform,ssl,sys,venv", script)
         self.assertIn("embedded_verified_bundle", script)
         self.assertIn("Test-EmbeddedSourceBundle", script)
         self.assertIn('git_required = $false', script)
@@ -231,6 +234,28 @@ class PublicPackageTests(unittest.TestCase):
         self.assertLess(metadata["installer_bytes"], release_check.MAX_SOURCE_BYTES)
         self.assertTrue(rendered.isascii())
 
+    def test_windows_acquisition_bootstrap_is_deterministic_and_hash_gated(self) -> None:
+        rendered, metadata = build_windows_bootstrap.render_bootstrap()
+        script = rendered.decode("ascii")
+        self.assertEqual(rendered, build_windows_bootstrap.OUTPUT.read_bytes())
+        self.assertEqual(metadata["version"], "0.4.2")
+        self.assertEqual(metadata["installer_sha256"], build_windows_bootstrap.digest(
+            build_windows_bootstrap.INSTALLER.read_bytes()
+        ))
+        self.assertIn(metadata["installer_sha256"], script)
+        self.assertIn(metadata["installer_git_blob_sha"], script)
+        self.assertIn("api.github.com/repos/delu543/weixin-replay-to-mp3/contents", script)
+        self.assertIn("codeload.github.com/delu543/weixin-replay-to-mp3", script)
+        self.assertIn("Test-VerifiedInstaller", script)
+        self.assertIn("-LocalArtifact", script)
+        self.assertIn('"Python"', script)
+        self.assertIn('"Curl"', script)
+        self.assertLess(metadata["bootstrap_bytes"], 50000)
+        self.assertTrue(rendered.isascii())
+        self.assertNotIn("Set-ExecutionPolicy", script)
+        self.assertNotIn("WebProxy", script)
+        self.assertNotIn("Certificate", script)
+
     def test_windows_onboarding_recovers_instead_of_reporting_macos_only(self) -> None:
         agents = (bootstrap.SOURCE_ROOT / "AGENTS.md").read_text(encoding="utf-8")
         readme = (bootstrap.SOURCE_ROOT / "README.md").read_text(encoding="utf-8")
@@ -238,11 +263,22 @@ class PublicPackageTests(unittest.TestCase):
             encoding="utf-8"
         )
         for text in (agents, readme, troubleshooting):
-            self.assertIn("install-windows.ps1", text)
-            self.assertIn("cdn.jsdelivr.net/gh/delu543/weixin-replay-to-mp3@v0.4.1", text)
+            self.assertIn("bootstrap-windows.ps1", text)
+            self.assertIn("GitHub", text)
         self.assertIn("不需要预先安装 Python、FFmpeg 或 Git", readme)
+        self.assertIn("api.github.com", agents)
+        self.assertIn("codeload", readme)
+        self.assertIn("bundled Python", troubleshooting)
         self.assertIn("not for a native Windows agent", troubleshooting)
         self.assertIn("not evidence that Windows is unsupported", troubleshooting)
+
+    def test_windows_first_prompt_forbids_early_manual_handoff(self) -> None:
+        prompt = (bootstrap.SOURCE_ROOT / "docs" / "WINDOWS_FIRST_PROMPT.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("GitHub API + bundled", prompt)
+        self.assertIn("-LocalArtifact", prompt)
+        self.assertIn("READY: you can send a link now", prompt)
 
     def test_requirements_pin_both_macos_wheel_hashes(self) -> None:
         text = (bootstrap.SOURCE_ROOT / "requirements-macos.txt").read_text(encoding="utf-8")

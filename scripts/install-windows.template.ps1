@@ -1,7 +1,8 @@
 [CmdletBinding()]
 param(
     [switch]$CheckOnly,
-    [string]$SourceRoot = ""
+    [string]$SourceRoot = "",
+    [string]$PythonExecutable = ""
 )
 
 Set-StrictMode -Version 2.0
@@ -199,7 +200,7 @@ function Invoke-PythonProbe {
     try {
         $arguments = @($PrefixArguments) + @(
             "-c",
-            "import platform,sys; print(sys.executable + '|' + platform.python_version()); raise SystemExit(0 if sys.version_info >= (3,10) else 3)"
+            "import platform,ssl,sys,venv; print(sys.executable + '|' + platform.python_version()); raise SystemExit(0 if sys.version_info >= (3,10) else 3)"
         )
         $probe = & $Executable @arguments 2>$null
         if ($LASTEXITCODE -ne 0 -or -not $probe) {
@@ -222,6 +223,17 @@ function Invoke-PythonProbe {
 }
 
 function Find-CompatiblePython {
+    param([string]$RequestedExecutable = "")
+    if (-not [string]::IsNullOrWhiteSpace($RequestedExecutable)) {
+        if (-not (Test-Path -LiteralPath $RequestedExecutable -PathType Leaf)) {
+            throw "The explicitly requested Python executable does not exist."
+        }
+        $requested = Invoke-PythonProbe -Executable (Resolve-Path -LiteralPath $RequestedExecutable).Path
+        if (-not $requested) {
+            throw "The explicitly requested Python executable is not Python $MinimumPython+ with ssl and venv support."
+        }
+        return $requested
+    }
     $localPrograms = Join-Path $env:LOCALAPPDATA "Programs\Python"
     foreach ($suffix in @("314", "313", "312", "311", "310")) {
         $candidate = Join-Path $localPrograms ("Python{0}\python.exe" -f $suffix)
@@ -278,7 +290,7 @@ try {
         throw "install-windows.ps1 must run on a native Windows host."
     }
     $bundle = Test-EmbeddedSourceBundle
-    $python = Find-CompatiblePython
+    $python = Find-CompatiblePython -RequestedExecutable $PythonExecutable
     $winget = Get-Command "winget.exe" -ErrorAction SilentlyContinue
     $git = Get-Command "git.exe" -ErrorAction SilentlyContinue
     $localSource = Find-LocalSourceRoot -RequestedRoot $SourceRoot
@@ -289,6 +301,7 @@ try {
             platform = "Windows"
             python_ready = [bool]$python
             python_version = $(if ($python) { $python.version } else { "" })
+            python_strategy = $(if ($PythonExecutable) { "explicit_codex_or_user_runtime" } elseif ($python) { "discovered" } else { "missing" })
             winget_ready = [bool]$winget
             git_available = [bool]$git
             git_required = $false

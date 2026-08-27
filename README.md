@@ -23,9 +23,10 @@
 - 如果要处理视频号，再准备已登录的官方桌面微信。
 
 Windows 新电脑不需要预先安装 Python、FFmpeg 或 Git。用户明确要求安装本工具后，
-Codex 应运行仓库的 PowerShell 安装入口：缺少 Python 就通过 Windows 自带的 `winget`
-安装到当前用户；FFmpeg、yt-dlp、EJS 和 Deno 随后安装到工具自己的私有环境。安装脚本
-本身内置固定版本、经过 SHA-256 校验的最小源码，因此 Git、GitHub 源码 ZIP 和
+Codex 应运行仓库的 `bootstrap-windows.ps1`。它会优先复用 Codex 桌面工作区提供的
+Python（如果当前版本提供），再尝试 PowerShell、curl、GitHub API、Git blob、Release
+Asset、codeload 和三个 jsDelivr 节点。每条路线都必须得到固定字节数和 SHA-256 才会
+执行。安装脚本内置经过校验的最小源码，因此 Git、源码 checkout 和
 `raw.githubusercontent.com` 都不是产品运行依赖。
 
 第一次，把下面整段发给 Codex：
@@ -38,11 +39,16 @@ https://github.com/delu543/weixin-replay-to-mp3
 必须先阅读仓库根目录的 AGENTS.md 和 README.md。识别当前是 macOS 还是 Windows 后，
 按仓库说明完成检查和当前用户安装。
 
-如果 Windows 缺少 Python、FFmpeg 或可用的 Git HTTPS helper，请直接运行仓库提供的
-Windows 安装入口自动补齐。若 GitHub 仓库、Git clone 或 raw GitHub 无法访问，改从
-https://cdn.jsdelivr.net/gh/delu543/weixin-replay-to-mp3@v0.4.1/install-windows.ps1
-取得这个单文件安装器；不要仅报告缺少依赖，也不要把 Windows 误判为
-unsupported_platform，更不要继续索要整个仓库 ZIP。
+如果是 Windows，请使用原生 PowerShell，不要在 WSL 中运行。先调用 Codex 的工作区
+依赖工具取得可用的 bundled Python 路径（若工具可用），然后按
+docs/WINDOWS_INSTALL.md 运行 bootstrap-windows.ps1。若 PowerShell 访问 Git、raw
+GitHub 或 jsDelivr 失败，不要停止：继续使用 GitHub API、Git blob、Release Asset、
+codeload 和 bundled Python 下载路径，并对固定字节数及 SHA-256 做校验。
+
+如果终端下载失败但 Codex 内置浏览器能够读取仓库，请把它作为正式恢复路径：通过浏览器
+完整读取小型 bootstrap-windows.ps1，精确写入本地并按文档哈希验证；或者把浏览器保存的
+固定版本安装器/归档交给 -LocalArtifact。完成这些自动路径前，不要让我手工复制仓库，
+也不要把 Windows 误判为 unsupported_platform。
 
 安装并检查通过后，请告诉我“已经可以发送链接”。以后我只发送本人有权处理的视频、
 直播或课程链接，你直接帮我导出 MP3；如果视频号必须手动操作微信，只告诉我最少的
@@ -50,7 +56,8 @@ unsupported_platform，更不要继续索要整个仓库 ZIP。
 ```
 
 Codex 会先识别系统，只有用户明确要求安装或使用后才安装当前系统所需的固定依赖。
-用户不需要自己复制命令。看到“已经可以发送链接”后，首次准备完成。当前版本明确支持
+用户不需要自己复制命令。看到“已经可以发送链接”后，首次准备完成。可直接复制的完整
+Windows 首窗消息见 [Windows 第一次对话](docs/WINDOWS_FIRST_PROMPT.md)。当前版本明确支持
 原生 Windows；如果检查结果说 README 只支持 macOS，说明读取了旧版本或错误来源，应
 刷新 GitHub `main` 后重试。
 
@@ -154,42 +161,30 @@ Windows：
 
 ## 第一次安装会做什么
 
-原生 Windows 有一个不依赖现成 Python 或 Git 的入口。当前源码已在本地时运行：
+原生 Windows 有一个不依赖系统 Python 或 Git 的获取入口。当前源码已在本地时运行：
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install-windows.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\bootstrap-windows.ps1
 ```
 
-如果 Git 克隆、HTTPS remote helper、`github.com` 或 `raw.githubusercontent.com` 不可
-用，Codex 应直接下载固定版本的自包含安装脚本。下面的命令依次尝试 jsDelivr 的多个
-入口；拿到脚本后不会再次下载 GitHub 源码：
+`bootstrap-windows.ps1` 会取得固定 `v0.4.2` 的自包含安装器，且只有固定字节数与
+SHA-256 同时匹配才执行。它按以下独立路径恢复：
 
-```powershell
-$installer = Join-Path $env:TEMP "weixin-replay-to-mp3-install.ps1"
-$urls = @(
-  "https://cdn.jsdelivr.net/gh/delu543/weixin-replay-to-mp3@v0.4.1/install-windows.ps1",
-  "https://fastly.jsdelivr.net/gh/delu543/weixin-replay-to-mp3@v0.4.1/install-windows.ps1",
-  "https://gcore.jsdelivr.net/gh/delu543/weixin-replay-to-mp3@v0.4.1/install-windows.ps1"
-)
-$downloaded = $false
-foreach ($url in $urls) {
-  try {
-    Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $installer
-    if ((Get-Item -LiteralPath $installer).Length -lt 100000) { throw "incomplete installer" }
-    $downloaded = $true
-    break
-  } catch { }
-}
-if (-not $downloaded) { throw "All installer download channels failed" }
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer
-```
+- `api.github.com` Contents raw 响应；
+- 同一固定文件的 Git blob base64 响应；
+- GitHub Release Asset；
+- `codeload.github.com` 固定标签归档（只提取根目录安装器）；
+- 三个 jsDelivr 节点；
+- 浏览器或其他已授权方式保存到本地的安装器/固定标签归档。
 
-如果这些外部下载入口全部被当前网络拦截，只需从另一台能访问的电脑复制同一个
-`install-windows.ps1` 单文件到 Windows 电脑后运行，不需要复制或打包整个仓库。这个
-文件就是可转移的源码救援包；它会先验证内置源码的版本、SHA-256、路径和必需文件，再
-落到当前账户的 LocalAppData。首次安装 Python 和私有依赖仍需要正常访问 Microsoft 和
-Python 包源，已有依赖缓存时可直接复用。固定校验值和更短的排障说明见
-[Windows 安装与救援](docs/WINDOWS_INSTALL.md)。
+下载客户端也不是单点：有 Codex bundled Python 时优先使用它，否则依次使用当前可用的
+PowerShell 或 `curl.exe`；BITS 仍可显式选择。终端只能访问部分域名时不会重复等几十
+分钟，每次尝试都有上限并在失败 JSON 中列出具体的 transport/client。
+
+如果所有自动入口确实都被网络策略拦截，只需复制同一个 `install-windows.ps1` 单文件或
+固定标签归档，不需要克隆仓库。这个文件会验证内置源码后落到当前账户 LocalAppData。
+首次私有依赖安装仍需要可访问的 Microsoft/Python 包源或已有缓存。固定校验值、浏览器
+接力和完整命令见 [Windows 安装与救援](docs/WINDOWS_INSTALL.md)。
 
 macOS 仍使用：
 

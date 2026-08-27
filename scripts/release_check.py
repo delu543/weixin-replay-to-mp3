@@ -122,10 +122,14 @@ def scan() -> dict[str, Any]:
         "PRIVACY.md",
         "SECURITY.md",
         "docs/CAPABILITY_MAP.md",
+        "docs/WINDOWS_FIRST_PROMPT.md",
         "docs/WINDOWS_INSTALL.md",
         "portable_skill/weixin-replay-to-mp3/SKILL.md",
         "requirements-windows.txt",
+        "bootstrap-windows.ps1",
         "install-windows.ps1",
+        "scripts/bootstrap-windows.template.ps1",
+        "scripts/build_windows_bootstrap.py",
         "scripts/build_windows_installer.py",
         "scripts/install-windows.template.ps1",
         "weixin_replay_cli.py",
@@ -133,12 +137,17 @@ def scan() -> dict[str, Any]:
     for name in required:
         if not (ROOT / name).is_file():
             errors.append(f"missing_required_file:{name}")
+    bootstrap = ROOT / "bootstrap-windows.ps1"
     installer = ROOT / "install-windows.ps1"
     windows_install = ROOT / "docs" / "WINDOWS_INSTALL.md"
     if installer.is_file() and windows_install.is_file():
         installer_sha256 = hashlib.sha256(installer.read_bytes()).hexdigest()
         if installer_sha256 not in windows_install.read_text(encoding="utf-8"):
             errors.append("windows_installer_checksum_stale")
+    if bootstrap.is_file() and windows_install.is_file():
+        bootstrap_sha256 = hashlib.sha256(bootstrap.read_bytes()).hexdigest()
+        if bootstrap_sha256 not in windows_install.read_text(encoding="utf-8"):
+            errors.append("windows_bootstrap_checksum_stale")
     return {"checked_files": checked, "errors": sorted(set(errors))}
 
 
@@ -160,17 +169,29 @@ def run_tests() -> dict[str, Any]:
 
 
 def run_generated_checks() -> dict[str, Any]:
-    proc = subprocess.run(
+    commands = (
         [sys.executable, str(ROOT / "scripts" / "build_windows_installer.py"), "--check"],
-        cwd=str(ROOT),
-        text=True,
-        capture_output=True,
-        check=False,
+        [sys.executable, str(ROOT / "scripts" / "build_windows_bootstrap.py"), "--check"],
     )
+    outputs: list[str] = []
+    errors: list[str] = []
+    exit_code = 0
+    for command in commands:
+        proc = subprocess.run(
+            command,
+            cwd=str(ROOT),
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        outputs.append(proc.stdout)
+        errors.append(proc.stderr)
+        if proc.returncode != 0:
+            exit_code = proc.returncode
     return {
-        "exit_code": proc.returncode,
-        "stdout_tail": proc.stdout[-4000:],
-        "stderr_tail": proc.stderr[-4000:],
+        "exit_code": exit_code,
+        "stdout_tail": "".join(outputs)[-8000:],
+        "stderr_tail": "".join(errors)[-8000:],
     }
 
 

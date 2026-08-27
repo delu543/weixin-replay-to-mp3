@@ -8,42 +8,31 @@ report that says README is macOS-only came from stale/wrong source or from runni
 agent inside WSL/Linux.
 
 1. In the ChatGPT/Codex Windows settings, use the Windows-native agent for this tool.
-2. Prefer the fixed self-contained installer below; do not rely on a cached README.
-3. Run `install-windows.ps1`. Missing Python, FFmpeg, or a Git HTTPS helper is an
+2. Prefer the fixed acquisition bootstrap below; do not rely on a cached README.
+3. Run `bootstrap-windows.ps1`. Missing Python, FFmpeg, or a Git HTTPS helper is an
    installation condition, not evidence that Windows is unsupported.
 
-When Git clone, GitHub, or `raw.githubusercontent.com` is unavailable, download the
-fixed installer through jsDelivr. It embeds the verified source and will not make a
-second GitHub request:
+If Codex exposes its workspace-dependency lookup, use the exact bundled Windows Python
+path it returns. A current checkout can then run:
 
 ```powershell
-$installer = Join-Path $env:TEMP "weixin-replay-to-mp3-install.ps1"
-$urls = @(
-  "https://cdn.jsdelivr.net/gh/delu543/weixin-replay-to-mp3@v0.4.1/install-windows.ps1",
-  "https://fastly.jsdelivr.net/gh/delu543/weixin-replay-to-mp3@v0.4.1/install-windows.ps1",
-  "https://gcore.jsdelivr.net/gh/delu543/weixin-replay-to-mp3@v0.4.1/install-windows.ps1"
-)
-$downloaded = $false
-foreach ($url in $urls) {
-  try {
-    Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $installer
-    if ((Get-Item -LiteralPath $installer).Length -lt 100000) { throw "incomplete installer" }
-    $downloaded = $true
-    break
-  } catch { }
-}
-if (-not $downloaded) { throw "All installer download channels failed" }
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\bootstrap-windows.ps1 `
+  -PythonExecutable "<EXACT_PATH_RETURNED_BY_CODEX>"
 ```
 
-If every download endpoint is blocked, transfer this same tagged
-`install-windows.ps1` file from another device. Do not request or rebuild a repository
-ZIP: the one PowerShell file is the source rescue kit. The installer verifies the
-embedded version, SHA-256, paths, and required files, discovers or installs user-local
-Python, then installs pinned FFmpeg and web tools in its private venv. Codex should
-continue through the post-install readiness check instead of stopping after listing
-missing dependencies. See [Windows installation and rescue](WINDOWS_INSTALL.md) for
-the fixed outer-file checksum.
+The bootstrap does not equate one failed URL with an unavailable product. It tries the
+public GitHub Contents API, Git blob, Release Asset, codeload, and three jsDelivr hosts
+through bounded PowerShell/curl/Python clients. It validates the fixed size and
+SHA-256 before execution. Exact commands and checksums are in
+[Windows installation and rescue](WINDOWS_INSTALL.md).
+
+If terminal requests fail but the in-app browser can display GitHub, read the complete
+small `bootstrap-windows.ps1` through the browser, write it exactly to the workspace,
+verify its documented SHA-256, and run it. A browser-saved fixed installer or tag ZIP
+can be supplied with `-LocalArtifact`; only the root installer is extracted and it is
+still hash-checked. Asking the user to transfer a file is the final branch only after
+the bootstrap JSON shows bounded failure for API through bundled Python, Git blob,
+Release Asset, codeload, jsDelivr, and any browser-local artifact.
 
 Full Xiaohongshu/YouTube/X/Twitter/generic webpage support requires Python 3.10 or
 newer. An older Python runtime is not full product readiness.

@@ -12,11 +12,13 @@ video, live, course, or direct-media link for MP3 extraction:
 
 1. Detect the native operating system without assuming Python or Git is already usable.
 2. On Windows, do **not** stop at “Python/FFmpeg/Git is missing.” If the request asks
-   to install or use the product, run the repository's `install-windows.ps1`. It
-   installs user-local Python through `winget` when needed and expands its own
-   fixed-version, SHA-256-verified embedded source when no checkout is available. Git,
-   GitHub source ZIP, and `raw.githubusercontent.com` are not runtime prerequisites.
-   FFmpeg, yt-dlp, EJS, and Deno remain pinned in the private runtime.
+   to install or use the product, run `bootstrap-windows.ps1`; when the verified
+   installer already exists locally, running `install-windows.ps1` directly is also
+   valid. The acquisition bootstrap tries independent GitHub API, Git blob, Release
+   Asset, codeload, and jsDelivr routes with PowerShell, curl, or an explicit Codex
+   bundled Python. Every route must produce the fixed byte count and SHA-256 before
+   execution. The installer then expands its verified embedded source. Git, a GitHub
+   checkout, and `raw.githubusercontent.com` are not runtime prerequisites.
 3. On macOS, run `python3 scripts/bootstrap.py doctor`, read `state` and `preflight`,
    and run `python3 scripts/bootstrap.py install` when the explicit request asks to
    install/use the product and the state is `needs_install`.
@@ -33,43 +35,46 @@ claim full readiness from an older Python runtime.
 
 ### Windows first-install command
 
-When a current checkout is available, run:
+When a current checkout is available, first ask the Codex desktop workspace-dependency
+tool for its bundled Python path when that tool exists. Pass the returned Windows
+Python executable to the bootstrap; do not print or invent a path:
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install-windows.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\bootstrap-windows.ps1 `
+  -PythonExecutable "<EXACT_BUNDLED_OR_USER_PYTHON_PATH>"
 ```
 
-When Git is missing, `git-remote-https` is broken, raw GitHub is unavailable, or there
-is no trustworthy local checkout, do not diagnose the product as unsupported. Download
-the fixed `v0.4.1` self-contained installer through the jsDelivr multi-CDN endpoint and
-run it. The installer validates and expands its embedded source; it never performs a
-second GitHub source download:
+If no bundled Python is reported, omit `-PythonExecutable`; the installer discovers a
+compatible Python or uses user-local `winget` as before.
+
+When there is no trustworthy checkout, do not diagnose the product as unsupported.
+Use the exact browser-readable recovery block in `docs/WINDOWS_INSTALL.md`. Its first
+route is the unauthenticated public GitHub Contents API on `api.github.com`, which is
+independent of Git HTTPS and raw GitHub. It also has a base64 Git-blob route, a fixed
+Release Asset, codeload archive extraction, and the three jsDelivr hosts. The preferred
+client is the Codex bundled Python when available, so a PowerShell network failure is
+not treated as proof that all terminal downloads are impossible.
+
+If the in-app browser can render this repository but terminal URL requests fail, this
+is a supported branch, not a reason to ask the user to copy the whole repository. Read
+the complete small `bootstrap-windows.ps1` source through the browser, write that exact
+text to the local workspace, verify it against the SHA-256 in
+`docs/WINDOWS_INSTALL.md`, and run it with the bundled Python path. If the browser can
+save the fixed tagged archive or installer locally, pass that exact file through
+`-LocalArtifact`; the bootstrap extracts only the root installer and verifies it.
+
+The direct installer remains fixed at `v0.4.2` and the bootstrap's automatic route is:
 
 ```powershell
-$installer = Join-Path $env:TEMP "weixin-replay-to-mp3-install.ps1"
-$urls = @(
-  "https://cdn.jsdelivr.net/gh/delu543/weixin-replay-to-mp3@v0.4.1/install-windows.ps1",
-  "https://fastly.jsdelivr.net/gh/delu543/weixin-replay-to-mp3@v0.4.1/install-windows.ps1",
-  "https://gcore.jsdelivr.net/gh/delu543/weixin-replay-to-mp3@v0.4.1/install-windows.ps1"
-)
-$downloaded = $false
-foreach ($url in $urls) {
-  try {
-    Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $installer
-    if ((Get-Item -LiteralPath $installer).Length -lt 100000) { throw "incomplete installer" }
-    $downloaded = $true
-    break
-  } catch { }
-}
-if (-not $downloaded) { throw "All installer download channels failed" }
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\bootstrap-windows.ps1
 ```
 
-If all download channels are blocked, the only required transfer is this same
-`install-windows.ps1` file from the tagged release. Once it exists locally, run it
-directly; do not request a repository ZIP. The file is also the offline source rescue
-kit, although first-time Python/private dependency installation still needs its normal
-Microsoft/Python package network unless those dependencies are already cached.
+Do not make the user wait through repeated long attempts. Each client has bounded
+timeouts. After failure, report the attempted transport/client pairs from the
+bootstrap JSON. Ask the user to change network or transfer one release file only after
+GitHub API through bundled Python, codeload, Release Asset, jsDelivr, and any
+browser-downloaded local artifact have all been ruled out. First-time private package
+installation still needs an available package source unless its wheels are cached.
 
 `unsupported_platform` is valid for Linux/remote local-WeChat operation, not for a
 native Windows agent. If a Windows result says the README is macOS-only, it is stale or
