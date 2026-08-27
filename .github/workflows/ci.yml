@@ -55,6 +55,9 @@ jobs:
       - name: Run standalone installer and regression gate
         shell: pwsh
         run: |
+          $originalLocalAppData = $env:LOCALAPPDATA
+          $originalUserProfile = $env:USERPROFILE
+          $originalHome = $env:HOME
           $isolated = Join-Path $env:RUNNER_TEMP "self-contained-install"
           $env:LOCALAPPDATA = Join-Path $isolated "local"
           $env:USERPROFILE = Join-Path $isolated "profile"
@@ -62,9 +65,10 @@ jobs:
           New-Item -ItemType Directory -Path $env:LOCALAPPDATA, $env:USERPROFILE -Force | Out-Null
           $standalone = Join-Path $env:RUNNER_TEMP "install-windows.ps1"
           $installOutput = powershell.exe -NoProfile -ExecutionPolicy Bypass -File $standalone 2>&1
+          $installExit = $LASTEXITCODE
           $installOutput | ForEach-Object { Write-Host $_ }
-          if ($LASTEXITCODE -ne 0) {
-            throw "Standalone Windows install failed with exit code $LASTEXITCODE"
+          if ($installExit -ne 0) {
+            throw "Standalone Windows install failed with exit code $installExit"
           }
           $runtime = Join-Path $env:LOCALAPPDATA "WeixinReplayToMP3\runtime"
           $runtimePython = Join-Path $runtime "work\venv\Scripts\python.exe"
@@ -74,6 +78,9 @@ jobs:
             throw "Installed private runtime is not ready"
           }
           $ffmpeg = & $runtimePython -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())"
+          $env:LOCALAPPDATA = $originalLocalAppData
+          $env:USERPROFILE = $originalUserProfile
+          $env:HOME = $originalHome
           $env:FFMPEG = $ffmpeg
           & $runtimePython scripts/release_check.py
           if ($LASTEXITCODE -ne 0) {

@@ -2645,7 +2645,7 @@ class ReplayMp3StudioTests(unittest.TestCase):
                         break
                     time.sleep(0.05)
 
-        self.assertEqual(current["state"], "completed")
+        self.assertEqual(current["state"], "completed", current)
         self.assertEqual(captured["duration"], 7200.0)
         self.assertEqual(captured["requested_speed"], 8.0)
         self.assertEqual(captured["effective_speed"], 3.0)
@@ -2708,7 +2708,7 @@ class ReplayMp3StudioTests(unittest.TestCase):
                         break
                     time.sleep(0.05)
 
-        self.assertEqual(current["state"], "completed")
+        self.assertEqual(current["state"], "completed", current)
         self.assertEqual(captured["duration"], 300)
         self.assertFalse(captured["watch_current_only"])
         self.assertTrue(captured["manual_playback"])
