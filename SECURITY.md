@@ -12,14 +12,14 @@
 - Same-context encrypted-source proof, resumable download, and full decode before
   completion on both systems.
 - User-local installation with no root/administrator privileges.
-- On an explicit Windows install/use request, the PowerShell entry may install the
-  `Python.Python.3.12` user-scope package through Windows Package Manager. A broken or
-  absent Git client is bypassed with the repository's HTTPS source archive; Git is not
-  repaired or installed merely to run this product.
+- On an explicit Windows x64 install/use request, the fixed portable Release Asset
+  installs its own hash-verified Python 3.13.15, source, Skill, FFmpeg, yt-dlp, EJS,
+  and Deno under the current user's LocalAppData. It calls no Git, winget, or online
+  pip after the single asset transfer.
 - Opaque per-user/profile namespace; macOS private modes and Windows LocalAppData/NTFS
   account boundary.
-- Pinned, hash-verified FFmpeg, yt-dlp, EJS, and Deno packages installed only after an
-  explicit install/use request.
+- Pinned, hash-verified Python, FFmpeg, yt-dlp, EJS, and Deno package bytes are verified
+  before activation and installed only after an explicit install/use request.
 
 ## Explicitly excluded
 

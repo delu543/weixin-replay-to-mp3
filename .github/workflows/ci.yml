@@ -35,6 +35,34 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      - name: Build fixed Windows offline portable asset
+        shell: pwsh
+        run: |
+          $lock = Get-Content .\scripts\windows-portable.lock.json -Raw | ConvertFrom-Json
+          $inputs = Join-Path $env:RUNNER_TEMP "portable-inputs"
+          $wheelhouse = Join-Path $inputs "wheels"
+          New-Item -ItemType Directory -Path $wheelhouse -Force | Out-Null
+          $pythonArchive = Join-Path $inputs $lock.python.filename
+          Invoke-WebRequest -UseBasicParsing -Uri $lock.python.url -OutFile $pythonArchive
+          if ((Get-FileHash -Algorithm SHA256 $pythonArchive).Hash.ToLowerInvariant() -ne
+              $lock.python.sha256) {
+            throw "The fixed Python embeddable archive hash did not match"
+          }
+          python -m pip download --disable-pip-version-check --require-hashes `
+            --only-binary=:all: --no-deps --dest $wheelhouse -r requirements-windows.txt
+          python scripts/build_windows_offline_bundle.py `
+            --python-embed $pythonArchive --wheelhouse $wheelhouse
+          $asset = Get-Item .\dist\weixin-replay-to-mp3-windows-portable-v*.zip
+          $built = Get-Content ($asset.FullName + ".json") -Raw | ConvertFrom-Json
+          $release = Get-Content .\docs\WINDOWS_OFFLINE_RELEASE.json -Raw | ConvertFrom-Json
+          if ($asset.Name -ne $release.asset_name -or
+              $asset.Length -ne [long]$release.bytes -or
+              $built.sha256 -ne $release.sha256 -or
+              (Get-FileHash -Algorithm SHA256 $asset.FullName).Hash.ToLowerInvariant() -ne
+                $release.sha256) {
+            throw "The Windows runner did not reproduce the fixed published asset"
+          }
+          $built | ConvertTo-Json -Depth 4
       - name: Acquire installer through independent Windows routes
         shell: pwsh
         run: |
@@ -77,9 +105,11 @@ jobs:
           }
           $remote = powershell.exe -NoProfile -ExecutionPolicy Bypass `
             -File $standalone -CheckOnly -PythonExecutable $python | ConvertFrom-Json
+          $expectedVersion = (Get-Content .\VERSION -Raw).Trim()
           if ($remote.source_strategy -ne "embedded_verified_bundle" -or
               $remote.git_required -or $remote.github_source_required -or
-              -not $remote.embedded_source_ready -or $remote.embedded_source_version -ne "0.4.2") {
+              -not $remote.embedded_source_ready -or
+              $remote.embedded_source_version -ne $expectedVersion) {
             throw "Self-contained Windows installer check failed"
           }
       - name: Run standalone installer and regression gate
@@ -118,3 +148,92 @@ jobs:
           if ($LASTEXITCODE -ne 0) {
             throw "Windows release gate failed with exit code $LASTEXITCODE"
           }
+      - name: Prove portable install without Git, system Python, winget, or online pip
+        shell: pwsh
+        run: |
+          $asset = Get-Item .\dist\weixin-replay-to-mp3-windows-portable-v*.zip
+          $expanded = Join-Path $env:RUNNER_TEMP "portable-expanded"
+          Expand-Archive -LiteralPath $asset.FullName -DestinationPath $expanded
+          $installer = Get-ChildItem -Path $expanded -Filter install-offline.ps1 -Recurse |
+            Select-Object -ExpandProperty FullName -First 1
+          if (-not $installer) { throw "Portable installer was not found in the fixed asset" }
+
+          $isolated = Join-Path $env:RUNNER_TEMP "portable-no-prerequisites"
+          $env:LOCALAPPDATA = Join-Path $isolated "local"
+          $env:USERPROFILE = Join-Path $isolated "profile"
+          $env:HOME = $env:USERPROFILE
+          New-Item -ItemType Directory -Path $env:LOCALAPPDATA, $env:USERPROFILE -Force | Out-Null
+          $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot"
+          $env:HTTP_PROXY = "http://127.0.0.1:9"
+          $env:HTTPS_PROXY = "http://127.0.0.1:9"
+          $env:PIP_NO_INDEX = "1"
+          foreach ($command in @("python.exe", "git.exe", "winget.exe")) {
+            if (Get-Command $command -ErrorAction SilentlyContinue) {
+              throw "$command must be absent from the portable-install test PATH"
+            }
+          }
+
+          $checked = powershell.exe -NoProfile -ExecutionPolicy Bypass `
+            -File $installer -CheckOnly | ConvertFrom-Json
+          if ($checked.status -ne "checked" -or -not $checked.python_embedded -or
+              -not $checked.ffmpeg_embedded -or -not $checked.yt_dlp_embedded -or
+              -not $checked.deno_embedded -or $checked.git_required -or
+              $checked.winget_required -or $checked.online_pip_required) {
+            throw "Portable asset check did not prove all dependencies embedded"
+          }
+          $installOutput = powershell.exe -NoProfile -ExecutionPolicy Bypass `
+            -File $installer 2>&1
+          $installExit = $LASTEXITCODE
+          $installOutput | ForEach-Object { Write-Host $_ }
+          if ($installExit -ne 0 -or ($installOutput -join "`n") -notmatch
+              "READY: you can send a link now") {
+            throw "Offline portable installation did not reach READY"
+          }
+          $runtime = Join-Path $env:LOCALAPPDATA "WeixinReplayToMP3\runtime"
+          $python = Join-Path $runtime "work\venv\Scripts\python.exe"
+          $cli = Join-Path $runtime "weixin_replay_cli.py"
+          $preflight = & $python $cli preflight | ConvertFrom-Json
+          if (-not $preflight.ready -or -not $preflight.web_link_ready) {
+            throw "Offline portable runtime preflight was not ready"
+          }
+          $ffmpeg = $preflight.ffmpeg
+          $source = Join-Path $isolated "source.wav"
+          $output = Join-Path $isolated "converted.mp3"
+          & $ffmpeg -hide_banner -loglevel error -f lavfi -i "sine=frequency=440:duration=1" `
+            -c:a pcm_s16le $source
+          if ($LASTEXITCODE -ne 0) { throw "Portable FFmpeg could not create the smoke input" }
+          & $python $cli convert-file $source --output $output --min-duration 0.9
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path $output)) {
+            throw "Portable local media to MP3 smoke failed"
+          }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-portable-release
+          path: |
+            dist/weixin-replay-to-mp3-windows-portable-v*.zip
+            dist/weixin-replay-to-mp3-windows-portable-v*.zip.json
+          if-no-files-found: error
+          retention-days: 3
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [macos, windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-portable-release
+          path: dist
+      - name: Publish the exact verified release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || \
+            gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes
+          gh release upload "$GITHUB_REF_NAME" \
+            bootstrap-windows.ps1 install-windows.ps1 \
+            dist/weixin-replay-to-mp3-windows-portable-v*.zip \
+            dist/weixin-replay-to-mp3-windows-portable-v*.zip.json --clobber

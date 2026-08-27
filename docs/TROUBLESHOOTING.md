@@ -8,41 +8,34 @@ report that says README is macOS-only came from stale/wrong source or from runni
 agent inside WSL/Linux.
 
 1. In the ChatGPT/Codex Windows settings, use the Windows-native agent for this tool.
-2. Prefer the fixed acquisition bootstrap below; do not rely on a cached README.
-3. Run `bootstrap-windows.ps1`. Missing Python, FFmpeg, or a Git HTTPS helper is an
-   installation condition, not evidence that Windows is unsupported.
+2. Use the literal capsule in [Windows first prompt](WINDOWS_FIRST_PROMPT.md); it is
+   already in the user's first message and does not need a checkout.
+3. Acquire the single fixed `weixin-replay-to-mp3-windows-portable-v0.5.0.zip`, verify
+   its published size and SHA-256, and run the included `install-offline.ps1`.
 
-If Codex exposes its workspace-dependency lookup, use the exact bundled Windows Python
-path it returns. A current checkout can then run:
+The asset already contains a bundled Python 3.13.15, FFmpeg, yt-dlp, EJS, Deno,
+source, and the Codex Skill. Therefore missing Python, FFmpeg, Git, winget, or pip is not an
+installation blocker. Once the ZIP is local, installation and preflight make no
+network request.
 
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\bootstrap-windows.ps1 `
-  -PythonExecutable "<EXACT_PATH_RETURNED_BY_CODEX>"
-```
-
-The bootstrap does not equate one failed URL with an unavailable product. It tries the
-public GitHub Contents API, Git blob, Release Asset, codeload, and three jsDelivr hosts
-through bounded PowerShell/curl/Python clients. It validates the fixed size and
-SHA-256 before execution. Exact commands and checksums are in
-[Windows installation and rescue](WINDOWS_INSTALL.md).
-
-If terminal requests fail but the in-app browser can display GitHub, read the complete
-small `bootstrap-windows.ps1` through the browser, write it exactly to the workspace,
-verify its documented SHA-256, and run it. A browser-saved fixed installer or tag ZIP
-can be supplied with `-LocalArtifact`; only the root installer is extracted and it is
-still hash-checked. Asking the user to transfer a file is the final branch only after
-the bootstrap JSON shows bounded failure for API through bundled Python, Git blob,
-Release Asset, codeload, jsDelivr, and any browser-local artifact.
+The capsule bounds each terminal client attempt. If terminal TLS fails but the in-app
+browser can download a GitHub Release Asset, download the same fixed ZIP through that
+browser, verify the same hash, and continue. Do not transcribe a large PowerShell file
+or search for individual packages. If neither terminal clients nor the browser can
+transfer any file bytes, that network acquisition boundary is the only correct blocker;
+it is not evidence that Windows is unsupported. Do not label it `unsupported_platform`
+or weaken certificate checks. Exact checksums
+are in [Windows installation and rescue](WINDOWS_INSTALL.md).
 
 Full Xiaohongshu/YouTube/X/Twitter/generic webpage support requires Python 3.10 or
 newer. An older Python runtime is not full product readiness.
 
 ## YouTube, X/Twitter, or another webpage fails
 
-On Windows, run `install-windows.ps1 -CheckOnly`; on macOS, run
+On Windows, run the installed `weixin-replay-to-mp3.cmd preflight`; on macOS, run
 `python3 scripts/bootstrap.py doctor`. Check `web_link_ready`, `yt_dlp_ready`, and
-`javascript_runtime_ready`. The installer provides pinned yt-dlp, local EJS assets,
-and Deno in the private venv on both macOS and Windows.
+`javascript_runtime_ready`. The Windows portable runtime supplies its own Python,
+FFmpeg, yt-dlp, local EJS assets, and Deno.
 
 The route does not automatically read browser cookies. A link can still fail because
 it requires login, age confirmation, a subscription, region access, DRM, or because
@@ -87,7 +80,7 @@ history, or account database roots. If no compatible runtime source exists, use
 This is not the normal path. First list explicit inputs:
 
 ```powershell
-python "$env:LOCALAPPDATA\WeixinReplayToMP3\runtime\weixin_replay_cli.py" audio-devices
+& "$env:LOCALAPPDATA\WeixinReplayToMP3\runtime\weixin-replay-to-mp3.cmd" audio-devices
 ```
 
 Windows exposes FFmpeg DirectShow inputs. A usable loopback may be named `Stereo Mix`
@@ -145,12 +138,13 @@ or move it yourself after deciding it is not needed.
 
 ## `ffmpeg not found` or web tools are not ready
 
-On Windows, run `install-windows.ps1`; do not ask the user to install FFmpeg manually.
-On macOS, run `python3 scripts/bootstrap.py install`. Both routes install the pinned
-wheel for the current operating system into a user-local venv, including FFmpeg,
-yt-dlp, EJS, and Deno. A system FFmpeg can instead be supplied through the `FFMPEG`
-environment variable using its exact executable path, but the pinned web tools are
-still required for full multi-platform webpage support.
+On Windows, rerun `install-offline.ps1` from the already verified portable ZIP; do not
+ask the user to install FFmpeg manually. On macOS, run
+`python3 scripts/bootstrap.py install`. The Windows route revalidates and restores its
+embedded Python, FFmpeg, yt-dlp, EJS, and Deno without online pip. A system FFmpeg can
+instead be supplied through the `FFMPEG` environment variable using its exact
+executable path, but the pinned web tools are still required for full multi-platform
+webpage support.
 
 ## Codex does not recognize the Skill immediately
 

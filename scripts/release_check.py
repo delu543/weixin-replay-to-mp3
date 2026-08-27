@@ -27,7 +27,17 @@ ALLOWED_ROOT_DIRS = {
     "tools",
     "video-audio-extractor",
 }
-PRIVATE_DIRS = {".git", ".codex", "work", "library", "incoming", "reports", "__pycache__"}
+PRIVATE_DIRS = {
+    ".git",
+    ".codex",
+    "build",
+    "dist",
+    "work",
+    "library",
+    "incoming",
+    "reports",
+    "__pycache__",
+}
 MEDIA_SUFFIXES = {
     ".mp3",
     ".mp4",
@@ -124,30 +134,47 @@ def scan() -> dict[str, Any]:
         "docs/CAPABILITY_MAP.md",
         "docs/WINDOWS_FIRST_PROMPT.md",
         "docs/WINDOWS_INSTALL.md",
+        "docs/WINDOWS_OFFLINE_RELEASE.json",
         "portable_skill/weixin-replay-to-mp3/SKILL.md",
         "requirements-windows.txt",
         "bootstrap-windows.ps1",
+        "bootstrap-windows-portable.ps1",
         "install-windows.ps1",
         "scripts/bootstrap-windows.template.ps1",
+        "scripts/bootstrap-windows-portable.template.ps1",
         "scripts/build_windows_bootstrap.py",
+        "scripts/build_windows_first_prompt.py",
         "scripts/build_windows_installer.py",
+        "scripts/build_windows_offline_bundle.py",
         "scripts/install-windows.template.ps1",
+        "scripts/install-windows-offline.template.ps1",
+        "scripts/WINDOWS_FIRST_PROMPT.template.md",
+        "scripts/windows-portable.lock.json",
+        "tools/install_offline_wheels.py",
         "weixin_replay_cli.py",
     ]
     for name in required:
         if not (ROOT / name).is_file():
             errors.append(f"missing_required_file:{name}")
-    bootstrap = ROOT / "bootstrap-windows.ps1"
-    installer = ROOT / "install-windows.ps1"
-    windows_install = ROOT / "docs" / "WINDOWS_INSTALL.md"
-    if installer.is_file() and windows_install.is_file():
-        installer_sha256 = hashlib.sha256(installer.read_bytes()).hexdigest()
-        if installer_sha256 not in windows_install.read_text(encoding="utf-8"):
-            errors.append("windows_installer_checksum_stale")
-    if bootstrap.is_file() and windows_install.is_file():
-        bootstrap_sha256 = hashlib.sha256(bootstrap.read_bytes()).hexdigest()
-        if bootstrap_sha256 not in windows_install.read_text(encoding="utf-8"):
-            errors.append("windows_bootstrap_checksum_stale")
+    release_path = ROOT / "docs" / "WINDOWS_OFFLINE_RELEASE.json"
+    portable_bootstrap = ROOT / "bootstrap-windows-portable.ps1"
+    first_prompt = ROOT / "docs" / "WINDOWS_FIRST_PROMPT.md"
+    if release_path.is_file():
+        try:
+            release = json.loads(release_path.read_text(encoding="utf-8"))
+            current_version = (ROOT / "VERSION").read_text(encoding="ascii").strip()
+            if release.get("version") != current_version:
+                errors.append("windows_offline_release_version_stale")
+            if int(release.get("bytes", 0)) < 50_000_000:
+                errors.append("windows_offline_release_too_small_for_embedded_dependencies")
+            if not re.fullmatch(r"[0-9a-f]{64}", str(release.get("sha256", ""))):
+                errors.append("windows_offline_release_sha256_invalid")
+        except (OSError, ValueError, TypeError, json.JSONDecodeError):
+            errors.append("windows_offline_release_manifest_invalid")
+    if portable_bootstrap.is_file() and first_prompt.is_file():
+        bootstrap_sha256 = hashlib.sha256(portable_bootstrap.read_bytes()).hexdigest()
+        if bootstrap_sha256 not in first_prompt.read_text(encoding="utf-8"):
+            errors.append("windows_portable_bootstrap_prompt_stale")
     return {"checked_files": checked, "errors": sorted(set(errors))}
 
 
@@ -172,6 +199,7 @@ def run_generated_checks() -> dict[str, Any]:
     commands = (
         [sys.executable, str(ROOT / "scripts" / "build_windows_installer.py"), "--check"],
         [sys.executable, str(ROOT / "scripts" / "build_windows_bootstrap.py"), "--check"],
+        [sys.executable, str(ROOT / "scripts" / "build_windows_first_prompt.py"), "--check"],
     )
     outputs: list[str] = []
     errors: list[str] = []

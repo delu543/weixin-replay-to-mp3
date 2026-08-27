@@ -1,21 +1,22 @@
 # Third-Party Notices
 
-No third-party downloader binary, proxy, certificate, driver, or captured user data is
-bundled in this repository.
+No proxy, certificate, driver, captured user data, or opaque downloader is bundled in
+this repository. The separately published Windows x64 portable Release Asset contains
+the fixed, hash-verified open-source runtimes listed below so first installation can
+finish without an online package manager.
 
 ## Python on first-time Windows setup
 
-When the user explicitly requests installation and no compatible Python exists, the
-Windows PowerShell entry asks Windows Package Manager to install the user-scope
-`Python.Python.3.12` package. This selects the current maintenance release in the 3.12
-channel; it is not committed to this repository. Python is distributed under the PSF
-License. If `winget` or a user-scope install is unavailable, setup stops instead of
-silently escalating to an administrator installation. See <https://www.python.org/>.
+The Windows portable Release Asset contains the official CPython 3.13.15 x64
+embeddable package, fixed by filename and SHA-256. It installs only under the current
+user's LocalAppData and does not call winget. Python is distributed under the PSF
+License, whose license file remains inside the Python package. See
+<https://www.python.org/downloads/release/python-31315/>.
 
 ## imageio-ffmpeg
 
-The installer downloads `imageio-ffmpeg==0.6.0` from PyPI using pinned SHA-256 wheel
-hashes for macOS arm64/x86_64 or Windows x86/x86_64, selected by the local platform.
+The macOS installer downloads `imageio-ffmpeg==0.6.0` from PyPI using pinned SHA-256
+wheel hashes. The Windows portable Release Asset includes the fixed x64 wheel.
 The package is distributed under the BSD 2-Clause License. Its bundled ffmpeg
 executable remains subject to the license configuration of that binary. See
 <https://github.com/imageio/imageio-ffmpeg>.
@@ -23,8 +24,9 @@ executable remains subject to the license configuration of that binary. See
 ## FFmpeg
 
 FFmpeg is invoked as an external executable for media conversion and full-decode
-verification. This repository does not contain an FFmpeg binary. See
-<https://ffmpeg.org/legal.html>.
+verification. The source repository does not contain an FFmpeg binary; the Windows
+portable Release Asset carries the binary already distributed inside the pinned
+`imageio-ffmpeg` wheel. See <https://ffmpeg.org/legal.html>.
 
 On Windows, the explicit recording fallback can address an existing DirectShow audio
 input. The repository does not bundle, install, or enable a loopback/virtual-audio
@@ -32,19 +34,20 @@ driver.
 
 ## yt-dlp and EJS
 
-The installer downloads the pure-Python `yt-dlp==2026.8.19` wheel and the local
-`yt-dlp-ejs==0.8.0` challenge-script wheel from PyPI using pinned SHA-256 hashes on
-both macOS and Windows. They are used for public YouTube, X/Twitter, and generic
-webpage extraction without automatic browser-cookie import. yt-dlp is distributed
-under the Unlicense; the EJS wheel contains Unlicense, MIT, and ISC components. See
+The macOS installer downloads the pure-Python `yt-dlp==2026.8.19` and
+`yt-dlp-ejs==0.8.0` wheels from PyPI using pinned SHA-256 hashes. The Windows portable
+Release Asset carries those same fixed wheel bytes. They are used for public YouTube,
+X/Twitter, and generic webpage extraction without automatic browser-cookie import.
+yt-dlp is distributed under the Unlicense; the EJS wheel contains Unlicense, MIT, and
+ISC components. See
 <https://github.com/yt-dlp/yt-dlp> and <https://github.com/yt-dlp/ejs>.
 
 ## Deno
 
-The installer downloads the platform-specific `deno==2.9.5` PyPI wheel using pinned
-SHA-256 hashes. Its executable is used only as yt-dlp's restricted JavaScript runtime;
-it is not a downloader and is not committed to this repository. Deno is MIT licensed.
-See <https://deno.com/>.
+The macOS installer downloads the platform-specific `deno==2.9.5` PyPI wheel using a
+pinned SHA-256 hash. The Windows portable Release Asset includes the corresponding
+fixed x64 wheel. Its executable is used only as yt-dlp's restricted JavaScript runtime.
+Deno is MIT licensed. See <https://deno.com/>.
 
 ## ISAAC / ISAAC64
 

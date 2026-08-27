@@ -22,44 +22,22 @@
 - Codex 桌面版；Windows 用户可参考 [OpenAI 官方 Windows 说明](https://learn.chatgpt.com/docs/windows/windows-app)；
 - 如果要处理视频号，再准备已登录的官方桌面微信。
 
-Windows 新电脑不需要预先安装 Python、FFmpeg 或 Git。用户明确要求安装本工具后，
-Codex 应运行仓库的 `bootstrap-windows.ps1`。它会优先复用 Codex 桌面工作区提供的
-Python（如果当前版本提供），再尝试 PowerShell、curl、GitHub API、Git blob、Release
-Asset、codeload 和三个 jsDelivr 节点。每条路线都必须得到固定字节数和 SHA-256 才会
-执行。安装脚本内置经过校验的最小源码，因此 Git、源码 checkout 和
-`raw.githubusercontent.com` 都不是产品运行依赖。
+Windows x64 新电脑不需要预先安装 Python、FFmpeg、Git、winget 或 pip。`v0.5.0` 的
+固定便携包一次性带齐 Python 3.13.15、Windows FFmpeg、yt-dlp、EJS、Deno、项目运行时
+和 Codex Skill。Codex 只需取得并核对这一个 Release Asset，后续展开、安装与 preflight
+都不再联网，也不需要从系统或 PyPI 临时找依赖。
+换句话说，不需要预先安装 Python、FFmpeg 或 Git，也不需要用户手工补环境。
 
-第一次，把下面整段发给 Codex：
+第一次使用时，把 [Windows 第一次对话](docs/WINDOWS_FIRST_PROMPT.md) 中的完整消息原样
+发给新的 Windows Codex 窗口。消息本身带有极小启动胶囊，因此没有本地 checkout 也能
+开始；它会优先自动下载固定便携包，终端 TLS 受限而内置浏览器可用时则通过浏览器下载
+同一个文件。固定文件名、大小和 SHA-256 见
+[Windows 离线发布清单](docs/WINDOWS_OFFLINE_RELEASE.json)。
 
-```text
-请读取并在本机安装这个工具：
-
-https://github.com/delu543/weixin-replay-to-mp3
-
-必须先阅读仓库根目录的 AGENTS.md 和 README.md。识别当前是 macOS 还是 Windows 后，
-按仓库说明完成检查和当前用户安装。
-
-如果是 Windows，请使用原生 PowerShell，不要在 WSL 中运行。先调用 Codex 的工作区
-依赖工具取得可用的 bundled Python 路径（若工具可用），然后按
-docs/WINDOWS_INSTALL.md 运行 bootstrap-windows.ps1。若 PowerShell 访问 Git、raw
-GitHub 或 jsDelivr 失败，不要停止：继续使用 GitHub API、Git blob、Release Asset、
-codeload 和 bundled Python 下载路径，并对固定字节数及 SHA-256 做校验。
-
-如果终端下载失败但 Codex 内置浏览器能够读取仓库，请把它作为正式恢复路径：通过浏览器
-完整读取小型 bootstrap-windows.ps1，精确写入本地并按文档哈希验证；或者把浏览器保存的
-固定版本安装器/归档交给 -LocalArtifact。完成这些自动路径前，不要让我手工复制仓库，
-也不要把 Windows 误判为 unsupported_platform。
-
-安装并检查通过后，请告诉我“已经可以发送链接”。以后我只发送本人有权处理的视频、
-直播或课程链接，你直接帮我导出 MP3；如果视频号必须手动操作微信，只告诉我最少的
-操作步骤，等我确认播放后继续。
-```
-
-Codex 会先识别系统，只有用户明确要求安装或使用后才安装当前系统所需的固定依赖。
-用户不需要自己复制命令。看到“已经可以发送链接”后，首次准备完成。可直接复制的完整
-Windows 首窗消息见 [Windows 第一次对话](docs/WINDOWS_FIRST_PROMPT.md)。当前版本明确支持
-原生 Windows；如果检查结果说 README 只支持 macOS，说明读取了旧版本或错误来源，应
-刷新 GitHub `main` 后重试。
+Codex 只有在安装器返回 `READY: you can send a link now`，且便携 Python 的 preflight
+证明 FFmpeg、yt-dlp 和 Deno 全部可用后，才会回复“已经可以发送链接”。下一条消息即可
+直接发送本人有权处理的视频链接。当前版本明确支持原生 Windows；如果检查结果说 README
+只支持 macOS，说明读取了旧版本或错误来源，应刷新 GitHub `main` 后重试。
 
 ## 日常使用：只发链接
 
@@ -109,9 +87,9 @@ Downloads/WeixinReplayMP3/<本地隔离命名空间>/xiaohongshu_<回放 ID>.mp3
 - Python 3.10 或更高版本；
 - 足够空间保存原视频工作文件和最终 MP3。
 
-Windows 安装器会自动准备所需 Python；用户不必先手工安装。Codex 应在 Windows 原生
-PowerShell 环境执行本项目，而不是把 WSL/Linux 的 `unsupported_platform` 结果当成
-Windows 结果。
+Windows 便携包已经包含所需 Python 和媒体依赖；用户不必先手工安装。Codex 应在
+Windows 原生 PowerShell 环境执行本项目，而不是把 WSL/Linux 的
+`unsupported_platform` 结果当成 Windows 结果。
 
 只有视频号需要已登录的官方桌面微信；只有 macOS 自动微信界面链路需要 Swift Command
 Line Tools 和辅助功能权限。
@@ -161,30 +139,16 @@ Windows：
 
 ## 第一次安装会做什么
 
-原生 Windows 有一个不依赖系统 Python 或 Git 的获取入口。当前源码已在本地时运行：
+Windows x64 的主安装物是一个固定 Release Asset：
 
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\bootstrap-windows.ps1
+```text
+weixin-replay-to-mp3-windows-portable-v0.5.0.zip
 ```
 
-`bootstrap-windows.ps1` 会取得固定 `v0.4.2` 的自包含安装器，且只有固定字节数与
-SHA-256 同时匹配才执行。它按以下独立路径恢复：
-
-- `api.github.com` Contents raw 响应；
-- 同一固定文件的 Git blob base64 响应；
-- GitHub Release Asset；
-- `codeload.github.com` 固定标签归档（只提取根目录安装器）；
-- 三个 jsDelivr 节点；
-- 浏览器或其他已授权方式保存到本地的安装器/固定标签归档。
-
-下载客户端也不是单点：有 Codex bundled Python 时优先使用它，否则依次使用当前可用的
-PowerShell 或 `curl.exe`；BITS 仍可显式选择。终端只能访问部分域名时不会重复等几十
-分钟，每次尝试都有上限并在失败 JSON 中列出具体的 transport/client。
-
-如果所有自动入口确实都被网络策略拦截，只需复制同一个 `install-windows.ps1` 单文件或
-固定标签归档，不需要克隆仓库。这个文件会验证内置源码后落到当前账户 LocalAppData。
-首次私有依赖安装仍需要可访问的 Microsoft/Python 包源或已有缓存。固定校验值、浏览器
-接力和完整命令见 [Windows 安装与救援](docs/WINDOWS_INSTALL.md)。
+首窗消息内的启动胶囊会用有界超时依次尝试 Codex bundled Python、PowerShell、
+`curl.exe` 和 BITS 下载这个文件；每种客户端都必须得到发布清单中的固定字节数和
+SHA-256。终端 TLS 失败但内置浏览器可以下载时，Codex 改为用浏览器取得同一资产，再做
+同一校验。它不再尝试从网页抄写 1.5MB 脚本，也不会让用户手动寻找依赖。
 
 macOS 仍使用：
 
@@ -193,18 +157,19 @@ python3 scripts/bootstrap.py doctor
 python3 scripts/bootstrap.py install
 ```
 
-只有用户明确要求安装或使用后才运行安装。Windows 安装入口会：
+只有用户明确要求安装或使用后才运行安装。便携包内的 `install-offline.ps1` 会：
 
-1. 缺少 Python 3.10+ 时，通过 `winget` 安装当前用户范围的 Python 3.12；
-2. 没有本地源码时，从安装脚本内解出固定版本、SHA-256 已校验的最小源码，不访问 GitHub；
-3. 把运行源码复制到当前用户的私有应用目录；
-4. 在私有 venv 中安装固定版本、固定哈希、与当前系统匹配的 `imageio-ffmpeg`、
-   `yt-dlp`、`yt-dlp-ejs` 和 Deno；
-5. 安装 `weixin-replay-to-mp3` Codex Skill，并再次检查就绪状态。
+1. 校验包清单和 Python、源码、四个固定 wheel 的逐文件哈希；
+2. 在当前账户的 LocalAppData 中展开自带 Python 和运行源码；
+3. 离线展开 `imageio-ffmpeg`、`yt-dlp`、`yt-dlp-ejs` 和 Deno；
+4. 安装 `weixin-replay-to-mp3` Codex Skill；
+5. 用刚安装的便携 Python 运行 preflight，并做最终依赖可用性校验。
 
-它优先使用当前用户范围，不退出微信，不读取聊天，不安装证书，不修改代理，也不会因为
-“打开了 GitHub 仓库”就静默执行。若系统缺少 `winget`，安装器会明确要求先恢复微软的
-App Installer，而不会伪报成功。
+安装器不调用 Git、winget 或在线 pip，不安装证书、不修改代理、不退出微信，也不读取聊天
+数据。升级既有受管运行时时会先把旧运行时移动到当前账户的可恢复备份目录；非本工具管理
+的同名目录会被拒绝覆盖。旧的 `bootstrap-windows.ps1`/`install-windows.ps1` 继续作为
+已有 checkout 的兼容路径；它可能使用 GitHub API/codeload，但不再是新用户的主路径。详细说明见
+[Windows 安装与救援](docs/WINDOWS_INSTALL.md)。
 
 ## 为什么这通常不是录一个小时
 
@@ -257,15 +222,15 @@ python3 "$HOME/Library/Application Support/WeixinReplayToMP3/runtime/weixin_repl
 Windows PowerShell 安装目录：
 
 ```powershell
-python "$env:LOCALAPPDATA\WeixinReplayToMP3\runtime\weixin_replay_cli.py" preflight
-python "$env:LOCALAPPDATA\WeixinReplayToMP3\runtime\weixin_replay_cli.py" `
+& "$env:LOCALAPPDATA\WeixinReplayToMP3\runtime\weixin-replay-to-mp3.cmd" preflight
+& "$env:LOCALAPPDATA\WeixinReplayToMP3\runtime\weixin-replay-to-mp3.cmd" `
   run "<本人有权处理的链接>"
 ```
 
 Windows 命令明确要求手动播放时，先完成上文步骤并回复确认，再运行：
 
 ```powershell
-python "$env:LOCALAPPDATA\WeixinReplayToMP3\runtime\weixin_replay_cli.py" `
+& "$env:LOCALAPPDATA\WeixinReplayToMP3\runtime\weixin-replay-to-mp3.cmd" `
   run "https://weixin.qq.com/sph/<id>" --manual-playback
 ```
 
@@ -305,10 +270,11 @@ python scripts/release_check.py
 ```
 
 检查包括：代码/私密数据允许清单、绝对开发路径、凭据模式、大文件/媒体、Codex Skill、
-自包含安装器可复现性和不触碰真实微信的离线回归。Windows CI 会把安装脚本单独复制到
-空目录，校验并解出内置源码、安装私有 FFmpeg/yt-dlp/EJS/Deno、执行 doctor，再用该
-私有运行时跑完整回归；macOS 继续跑同一核心测试。这会验证分发、跨平台路由与依赖，
-但不等同于每个外部网站或 Windows 微信真机都已验证，相关边界会继续明确标注。
+自包含安装器可复现性和不触碰真实微信的离线回归。Windows CI 会构建固定便携包，把
+Git、系统 Python 和 winget 从 `PATH` 移除并阻断在线 pip，然后只靠该 ZIP 安装、执行
+preflight，并把本地音频完整转成可解码 MP3；macOS 继续跑同一核心测试。这会验证分发、
+跨平台路由与依赖，但不等同于每个外部网站或 Windows 微信真机都已验证，相关边界会
+继续明确标注。
 
 ## 许可证与声明
 

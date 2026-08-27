@@ -238,7 +238,7 @@ class PublicPackageTests(unittest.TestCase):
         rendered, metadata = build_windows_bootstrap.render_bootstrap()
         script = rendered.decode("ascii")
         self.assertEqual(rendered, build_windows_bootstrap.OUTPUT.read_bytes())
-        self.assertEqual(metadata["version"], "0.4.2")
+        self.assertEqual(metadata["version"], bootstrap.version())
         self.assertEqual(metadata["installer_sha256"], build_windows_bootstrap.digest(
             build_windows_bootstrap.INSTALLER.read_bytes()
         ))
@@ -262,15 +262,31 @@ class PublicPackageTests(unittest.TestCase):
         troubleshooting = (bootstrap.SOURCE_ROOT / "docs" / "TROUBLESHOOTING.md").read_text(
             encoding="utf-8"
         )
-        for text in (agents, readme, troubleshooting):
+        for text in (agents, readme):
             self.assertIn("bootstrap-windows.ps1", text)
             self.assertIn("GitHub", text)
+        self.assertIn("weixin-replay-to-mp3-windows-portable-v0.5.0.zip", troubleshooting)
+        self.assertIn("GitHub", troubleshooting)
         self.assertIn("不需要预先安装 Python、FFmpeg 或 Git", readme)
         self.assertIn("api.github.com", agents)
         self.assertIn("codeload", readme)
         self.assertIn("bundled Python", troubleshooting)
         self.assertIn("not for a native Windows agent", troubleshooting)
         self.assertIn("not evidence that Windows is unsupported", troubleshooting)
+
+    def test_windows_onboarding_prefers_the_fixed_offline_portable_asset(self) -> None:
+        agents = (bootstrap.SOURCE_ROOT / "AGENTS.md").read_text(encoding="utf-8")
+        readme = (bootstrap.SOURCE_ROOT / "README.md").read_text(encoding="utf-8")
+        skill = (
+            bootstrap.SOURCE_ROOT
+            / "portable_skill"
+            / "weixin-replay-to-mp3"
+            / "SKILL.md"
+        ).read_text(encoding="utf-8")
+        for text in (agents, readme, skill):
+            self.assertIn("weixin-replay-to-mp3-windows-portable-v0.5.0.zip", text)
+            self.assertIn("install-offline.ps1", text)
+        self.assertIn("不需要预先安装 Python、FFmpeg、Git、winget 或 pip", readme)
 
     def test_windows_first_prompt_forbids_early_manual_handoff(self) -> None:
         prompt = (bootstrap.SOURCE_ROOT / "docs" / "WINDOWS_FIRST_PROMPT.md").read_text(

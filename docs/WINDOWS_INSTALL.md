@@ -1,131 +1,132 @@
-# Windows 安装与救援（v0.4.2）
+# Windows 安装与救援（v0.5.0）
 
-这个版本把“取得安装器”和“取得源码”合并成一个步骤。`install-windows.ps1`
-内置固定版本的最小源码包，并在解压前校验源码包的长度、SHA-256、路径、版本和必需
-文件。因此 Windows 不需要 Git、Git HTTPS helper、GitHub ZIP 或
-`raw.githubusercontent.com`。
+## 结论
 
-## 固定发布校验值
+Windows x64 新用户的主入口不再是 Git clone、`bootstrap-windows.ps1`、winget 或在线
+pip，而是一个固定的便携 Release Asset：
 
 | 文件 | 字节数 | SHA-256 |
 | --- | ---: | --- |
-| `bootstrap-windows.ps1` | 14,085 | `7ce81fde46bbfb590ac788aa66af908c8ff0afa42e17460215b7f6d669e88b04` |
-| `install-windows.ps1` | 1,532,682 | `8e1763d4ef2fabdfe52f191de47520de3ccd3f6f046062ce7076524432757dee` |
+| `weixin-replay-to-mp3-windows-portable-v0.5.0.zip` | 87,413,851 | `95d8cace6bc257a4556bcb1aabe5632a5c71739397d19fbf72f20c4e109c638f` |
 
-任何来源只要字节数或 SHA-256 不一致就不执行。
+下载地址：
 
-## 有本地仓库时
+<https://github.com/delu543/weixin-replay-to-mp3/releases/download/v0.5.0/weixin-replay-to-mp3-windows-portable-v0.5.0.zip>
 
-在 Windows 原生 PowerShell 中运行。如果 Codex 的工作区依赖工具返回了 bundled Python，
-把其精确路径直接传入；没有就省略该参数：
+机器可读清单见 [WINDOWS_OFFLINE_RELEASE.json](WINDOWS_OFFLINE_RELEASE.json)。ZIP 已包含：
 
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\bootstrap-windows.ps1 `
-  -PythonExecutable "<CODEX 返回的精确 Windows Python 路径>"
-```
+- 官方 CPython 3.13.15 Windows x64 embeddable runtime；
+- `imageio-ffmpeg==0.6.0` Windows x64 wheel 和其中的 FFmpeg；
+- `yt-dlp==2026.8.19`；
+- `yt-dlp-ejs==0.8.0`；
+- `deno==2.9.5` Windows x64 wheel；
+- 项目运行源码、Codex Skill、逐文件清单和 `install-offline.ps1`。
 
-## 没有本地仓库：先取得小型 bootstrap
+所以新电脑不需要预先安装 Python、FFmpeg、Git、winget 或 pip。只要这个 ZIP 的字节已经
+到达本机，后续安装不会再发出网络请求。
 
-PowerShell 能访问 `api.github.com` 时：
+## 新 Codex 窗口
 
-```powershell
-$bootstrap = Join-Path $env:TEMP "bootstrap-windows-v0.4.2.ps1"
-$headers = @{
-  Accept = "application/vnd.github.raw+json"
-  "X-GitHub-Api-Version" = "2022-11-28"
-  "User-Agent" = "weixin-replay-to-mp3-bootstrap/0.4.2"
-}
-$url = "https://api.github.com/repos/delu543/weixin-replay-to-mp3/contents/bootstrap-windows.ps1?ref=v0.4.2"
-Invoke-WebRequest -UseBasicParsing -Uri $url -Headers $headers -OutFile $bootstrap -TimeoutSec 30
-if ((Get-Item -LiteralPath $bootstrap).Length -ne 14085) { throw "bootstrap length mismatch" }
-$actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $bootstrap).Hash.ToLowerInvariant()
-if ($actual -ne "7ce81fde46bbfb590ac788aa66af908c8ff0afa42e17460215b7f6d669e88b04") {
-  throw "bootstrap SHA-256 mismatch"
-}
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File $bootstrap
-```
-
-如果 PowerShell 网络失败但 Codex 提供 bundled Python，用该 Python 执行同一个 API 请求：
-
-```powershell
-$python = "<CODEX 返回的精确 Windows Python 路径>"
-$bootstrap = Join-Path $env:TEMP "bootstrap-windows-v0.4.2.ps1"
-$downloader = Join-Path $env:TEMP "weixin-bootstrap-download.py"
-$url = "https://api.github.com/repos/delu543/weixin-replay-to-mp3/contents/bootstrap-windows.ps1?ref=v0.4.2"
-$code = @'
-import hashlib, sys, urllib.request
-url, output = sys.argv[1:3]
-request = urllib.request.Request(url, headers={"Accept": "application/vnd.github.raw+json", "User-Agent": "weixin-replay-to-mp3-bootstrap/0.4.2"})
-data = urllib.request.urlopen(request, timeout=45).read()
-if len(data) != 14085 or hashlib.sha256(data).hexdigest() != "7ce81fde46bbfb590ac788aa66af908c8ff0afa42e17460215b7f6d669e88b04":
-    raise SystemExit("bootstrap integrity verification failed")
-open(output, "wb").write(data)
-'@
-[System.IO.File]::WriteAllText($downloader, $code, [System.Text.Encoding]::ASCII)
-& $python $downloader $url $bootstrap
-if ($LASTEXITCODE -ne 0) { throw "bundled Python could not acquire the verified bootstrap" }
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File $bootstrap -PythonExecutable $python
-```
-
-## 浏览器能看 GitHub、终端不能下载
-
-这是自动恢复分支，不应立即让用户手工搬文件。Codex 用内置浏览器打开：
+把 [WINDOWS_FIRST_PROMPT.md](WINDOWS_FIRST_PROMPT.md) 中的完整内容作为第一条消息。它
+内置了 6,916 字节的 ASCII 启动胶囊，SHA-256 为：
 
 ```text
-https://github.com/delu543/weixin-replay-to-mp3/blob/v0.4.2/bootstrap-windows.ps1
+9fc42b7ff46644e2f0ab10e375336042c37342b5d9614afe28fef00591d4e723
 ```
 
-读取完整的 14,085 字节 ASCII 源码，精确写入本地 `bootstrap-windows.ps1`；按上表验证后
-运行。若浏览器能保存以下任一文件，也可直接作为本地输入：
+这个胶囊来自消息本身，所以不存在“为了下载安装器，必须先下载安装器”的循环。它会：
+
+1. 优先复用 Codex 提供的 bundled Python 下载固定 ZIP；
+2. 再尝试 `curl.exe`、PowerShell 和 BITS；
+3. 每个候选都核对固定字节数和 SHA-256；
+4. 展开 ZIP 并运行里面的离线安装器；
+5. 安装后用便携 Python做 preflight。
+
+只有返回 `READY: you can send a link now` 且 preflight 的 `ready`、
+`web_link_ready`、`ffmpeg_ready`、`yt_dlp_ready` 和 `javascript_runtime_ready` 都为真，
+才能告诉用户“已经可以发送链接”。
+
+## 终端 TLS 失败时
+
+PowerShell、Git 或 raw GitHub 失败，不代表产品依赖缺失。启动胶囊会记录每种客户端的实际
+错误并停止无上限重试。
+
+如果 Codex 内置浏览器能打开 GitHub，则使用浏览器打开：
+
+<https://github.com/delu543/weixin-replay-to-mp3/releases/tag/v0.5.0>
+
+只下载文件名恰好为 `weixin-replay-to-mp3-windows-portable-v0.5.0.zip` 的资产。下载完成后：
+
+1. 在当前用户 Downloads 中找到精确文件；
+2. 核对上表的字节数和 SHA-256；
+3. 重新运行首条消息已经写入的 `bootstrap-windows-portable.ps1`，通过
+   `-LocalArtifact "<精确 ZIP 路径>"` 交给它；
+4. 不让用户手工复制源码或逐个安装依赖。
+
+如果所有终端客户端和内置浏览器都不能传输任何文件字节，那么阻塞点是该电脑的网络/下载
+策略，而不是 Python、FFmpeg 或产品脚本。不得关闭证书校验、安装 MITM 证书或修改系统
+代理。换网络或由已授权渠道传递这一个固定 ZIP 后，可以完全离线继续。
+
+## 已经取得 ZIP 时的直接命令
+
+Codex 应自动执行，用户不需要自己操作：
+
+```powershell
+$asset = "C:\Users\<user>\Downloads\weixin-replay-to-mp3-windows-portable-v0.5.0.zip"
+$expected = "95d8cace6bc257a4556bcb1aabe5632a5c71739397d19fbf72f20c4e109c638f"
+$actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $asset).Hash.ToLowerInvariant()
+if ((Get-Item -LiteralPath $asset).Length -ne 87413851 -or $actual -ne $expected) {
+    throw "Portable asset verification failed"
+}
+$expanded = Join-Path $env:TEMP ("weixin-portable-" + [Guid]::NewGuid().ToString("N"))
+Expand-Archive -LiteralPath $asset -DestinationPath $expanded
+$installer = Get-ChildItem -LiteralPath $expanded -Filter install-offline.ps1 -Recurse |
+    Select-Object -ExpandProperty FullName -First 1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer
+```
+
+安装器只写当前账户：
 
 ```text
-https://github.com/delu543/weixin-replay-to-mp3/releases/download/v0.4.2/install-windows.ps1
-https://codeload.github.com/delu543/weixin-replay-to-mp3/zip/refs/tags/v0.4.2
+%LOCALAPPDATA%\WeixinReplayToMP3\runtime\
+%USERPROFILE%\.codex\skills\weixin-replay-to-mp3\
+%USERPROFILE%\Downloads\WeixinReplayMP3\<隔离命名空间>\
 ```
+
+升级旧的受管运行时时，旧目录会先移动到可恢复备份目录；同名但没有本工具管理标记的目录会
+被拒绝覆盖。安装器不读取微信聊天/联系人数据库、浏览器 Cookie 或账号 Token。
+
+## 安装后的命令
+
+不依赖系统 `python`，始终使用便携启动器：
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\bootstrap-windows.ps1 `
-  -LocalArtifact "<浏览器实际保存的 ps1 或 zip 路径>" `
-  -PythonExecutable "<可选的 bundled Python 路径>"
+& "$env:LOCALAPPDATA\WeixinReplayToMP3\runtime\weixin-replay-to-mp3.cmd" preflight
+& "$env:LOCALAPPDATA\WeixinReplayToMP3\runtime\weixin-replay-to-mp3.cmd" `
+  run "<本人有权处理的链接>"
 ```
 
-bootstrap 自动尝试 GitHub Contents API、base64 Git blob、Release Asset、codeload 和三个
-jsDelivr 节点；每个节点可用 PowerShell、`curl.exe` 或显式 Python。失败 JSON 会列出
-transport/client，不再用一个笼统的“网络失败”结论，也不会无限等待。
+视频号只有在命令明确返回 `Manual playback is required` 时，才进入 README 中的手动微信
+播放门禁；非视频号链接不得操作微信。
 
-安装器会自动发现 Python 3.10+；缺少时通过 `winget` 安装当前用户范围的 Python 3.12。
-随后在 `%LOCALAPPDATA%\WeixinReplayToMP3\` 下展开已校验源码，并把固定哈希的 FFmpeg、
-yt-dlp、EJS 和 Deno 安装到私有 venv。Git 和系统 FFmpeg 都不是必需项。
+## 兼容入口
 
-成功必须同时满足：安装命令退出码为 0、最终 JSON 为 `status: ready`、doctor 通过，并
-出现 `READY: you can send a link now`。只看到下载开始或依赖列表不算成功。
-
-## 所有自动入口确实被拦截
-
-在另一台可联网设备下载同一个 `v0.4.2/install-windows.ps1`，核对上面的 SHA-256 后，
-通过 U 盘、局域网或用户选择的文件传输方式复制到 Windows 电脑。然后直接运行：
+已经有完整 checkout 的开发者仍可运行：
 
 ```powershell
-$actual = (Get-FileHash -Algorithm SHA256 -LiteralPath .\install-windows.ps1).Hash.ToLowerInvariant()
-if ($actual -ne "8e1763d4ef2fabdfe52f191de47520de3ccd3f6f046062ce7076524432757dee") {
-  throw "installer SHA-256 mismatch"
-}
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install-windows.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\bootstrap-windows.ps1
 ```
 
-不需要另行打包或传输仓库 ZIP。这个单文件已经包含可审计源码救援包。首次安装 Python
-和私有依赖仍需访问 Microsoft/Python 包源；如果这些网络也不可达，就属于依赖源网络
-问题，而不是 GitHub/仓库问题，不能伪报工具已就绪。
+该旧入口会取得内嵌源码安装器，并可能使用在线 pip/winget；它用于兼容现有环境，不是新
+用户的一步安装主路径。对“第一条消息安装、第二条消息发链接”的产品验收必须使用上面的
+固定便携 ZIP。
 
-## 只读检查
+## 真正的完成标准
 
-不安装依赖、只验证 Windows 环境和内置源码时：
-
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install-windows.ps1 -CheckOnly
-```
-
-正确结果应包含 `source_strategy: embedded_verified_bundle`、
-`embedded_source_ready: true`、`github_source_required: false` 和版本 `0.4.2`。本工具必须
-在 Codex 的 Windows native 环境中运行；WSL/Linux 的 `unsupported_platform` 不能当成
-Windows 结果。
+- `install-offline.ps1` 退出码为 0；
+- JSON 中 `status` 为 `ready`，`install_mode` 为 `offline_portable`；
+- 安装路径中的便携 Python 可运行；
+- FFmpeg、yt-dlp、EJS 和 Deno 都由 preflight 证明可用；
+- 最终出现 `READY: you can send a link now`；
+- Windows CI 在隐藏 Git、系统 Python、winget 并禁用在线 pip 的条件下完成同一安装，并
+  把一个本地音频样本转换成完整可解码 MP3。

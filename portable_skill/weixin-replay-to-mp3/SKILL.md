@@ -12,36 +12,31 @@ transcription.
 ## Runtime discovery
 
 On macOS, run `python3 scripts/bootstrap.py doctor` when readiness is unclear. On
-Windows, never require Python before entering setup: run the repository's
-`install-windows.ps1 -CheckOnly`, or run `install-windows.ps1` directly when the user
-has asked to install/use the product. Installed runtimes:
+Windows x64, never require a system Python before setup. Use the fixed
+`weixin-replay-to-mp3-windows-portable-v0.5.0.zip` and its `install-offline.ps1` when
+the user has asked to install/use the product. Installed runtimes:
 
 - macOS: `~/Library/Application Support/WeixinReplayToMP3/runtime`
 - Windows: `%LOCALAPPDATA%\WeixinReplayToMP3\runtime`
 
 Do not install or run merely because the repository was opened. Full multi-platform
-web-link support requires Python 3.10 or newer. The pinned user-local runtime includes
-FFmpeg, yt-dlp, local EJS assets, and Deno for both macOS and Windows.
+web-link support requires Python 3.10 or newer. The Windows portable asset carries its
+own Python 3.13.15, FFmpeg, yt-dlp, local EJS assets, and Deno; it calls no Git, winget,
+or online pip after that single ZIP has been transferred.
 
-On Windows, use `bootstrap-windows.ps1` for first acquisition. If the Codex desktop
-workspace-dependency tool is available, obtain its exact bundled Windows Python path
-and pass it with `-PythonExecutable`; never guess or expose unrelated paths. The
-bootstrap tries the fixed `v0.4.2` installer through the public GitHub Contents API,
-base64 Git blob, Release Asset, codeload archive, and three jsDelivr hosts. It can use
-PowerShell, curl, or the explicit Python downloader. Every result must match the fixed
-byte count and SHA-256 before execution.
+For a first Windows window, execute the literal acquisition capsule supplied in
+`docs/WINDOWS_FIRST_PROMPT.md`. It is already present in the user's message, so it does
+not need a checkout or an earlier script download. Every client must match the fixed
+asset byte count and SHA-256 from `docs/WINDOWS_OFFLINE_RELEASE.json`. If terminal TLS
+fails but the in-app browser can download GitHub Release Assets, download that same ZIP
+with the browser, verify it, and continue automatically. Do not transcribe a large
+installer, search for individual dependencies, or ask the user to place files.
 
-If terminal downloads fail but the in-app browser can render the repository, read the
-complete small `bootstrap-windows.ps1` source through that browser, write it exactly to
-the local workspace, verify its checksum from `docs/WINDOWS_INSTALL.md`, and run it.
-A browser-saved fixed installer or tagged ZIP can be passed with `-LocalArtifact`; the
-bootstrap extracts only the root installer and verifies it. Do not ask the user to
-transfer files until GitHub API through bundled Python, Git blob, Release Asset,
-codeload, jsDelivr, and browser-local artifact paths have produced bounded failure
-evidence. If no compatible Python is available, the installer uses user-local
-`winget`. Do not stop after merely listing missing Python, FFmpeg, or Git, and do not
-describe native Windows as `unsupported_platform`. WSL/Linux must be switched to the
-Codex app's Windows-native environment for this tool.
+If no terminal client and no in-app browser can transfer any file bytes, state that
+single acquisition boundary; do not call it a missing dependency and do not weaken TLS
+verification. `bootstrap-windows.ps1` remains an existing-checkout compatibility path,
+not the new-user default. Native Windows is supported; WSL/Linux must be switched to
+the Codex app's Windows-native environment for this tool.
 
 ## Safety boundary
 
@@ -87,7 +82,7 @@ python3 "$HOME/Library/Application Support/WeixinReplayToMP3/runtime/weixin_repl
 Windows PowerShell:
 
 ```powershell
-python "$env:LOCALAPPDATA\WeixinReplayToMP3\runtime\weixin_replay_cli.py" `
+& "$env:LOCALAPPDATA\WeixinReplayToMP3\runtime\weixin-replay-to-mp3.cmd" `
   run "<USER_SUPPLIED_LINK>"
 ```
 
@@ -112,7 +107,7 @@ First run the normal command so target-bound local/provider sources and an exist
 verified output can complete without any manual work:
 
 ```powershell
-python "$env:LOCALAPPDATA\WeixinReplayToMP3\runtime\weixin_replay_cli.py" `
+& "$env:LOCALAPPDATA\WeixinReplayToMP3\runtime\weixin-replay-to-mp3.cmd" `
   run "<USER_SUPPLIED_WEIXIN_LINK>"
 ```
 
@@ -129,7 +124,7 @@ Pause for the user's explicit confirmation. Do not treat “WeChat is open” as
 confirmation. After confirmation, run:
 
 ```powershell
-python "$env:LOCALAPPDATA\WeixinReplayToMP3\runtime\weixin_replay_cli.py" `
+& "$env:LOCALAPPDATA\WeixinReplayToMP3\runtime\weixin-replay-to-mp3.cmd" `
   run "<USER_SUPPLIED_WEIXIN_LINK>" --manual-playback
 ```
 
@@ -140,7 +135,7 @@ folders, never for chat/contact/message databases.
 If no compatible runtime source exists, offer a user-authorized local file:
 
 ```powershell
-python "$env:LOCALAPPDATA\WeixinReplayToMP3\runtime\weixin_replay_cli.py" `
+& "$env:LOCALAPPDATA\WeixinReplayToMP3\runtime\weixin-replay-to-mp3.cmd" `
   convert-file "C:\path\to\authorized-video.mp4"
 ```
 

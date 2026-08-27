@@ -20,8 +20,8 @@ This map separates implemented code, real-machine evidence, and portability.
 | Authorized local media conversion | active | active | `convert-file` preserves an existing output and requires full decode before completion |
 | Same-link reuse/resume | active | active | Fixed short-ID output and target-bound private run state; pipeline-state tests |
 | Per-user data isolation | active | active | Opaque namespace binds local OS principal + validated profile; macOS modes and Windows LocalAppData/NTFS account boundary |
-| First-time prerequisite recovery | Python must already exist | active | Windows bootstrap can reuse an explicit Codex bundled Python, then tries GitHub Contents API, Git blob, Release Asset, codeload, three jsDelivr hosts, or a verified local browser artifact through bounded PowerShell/curl/Python clients; the fixed installer embeds and verifies source, so Git/raw GitHub are not required |
-| Automatic dependency install | active | active | User-requested only; Python 3.10+ user-local venv; platform-specific pinned `imageio-ffmpeg`, yt-dlp, EJS, and Deno hashes; no separate system FFmpeg |
+| First-time prerequisite recovery | Python must already exist | active | One fixed Windows x64 Release Asset embeds Python 3.13.15, source, Skill, FFmpeg, yt-dlp, EJS, and Deno; the literal first-message capsule fetches it without requiring a checkout, and an in-app browser download is the bounded fallback |
+| Automatic dependency install | active | active | User-requested only; Windows portable install is offline after the single asset transfer and calls no Git, winget, or online pip; macOS retains its pinned Python 3.10+ venv route |
 | Explicit audio-recording fallback | ScreenCaptureKit/AVFoundation | DirectShow device selected by user | Last resort only; never install/enable a driver; implementation tests, Windows real-device validation pending |
 | Windows automatic WeChat UI control | n/a | not implemented | Must not be advertised; a missing adapter stops before sending or scanning |
 | Linux/local cloud WeChat control | not implemented | not implemented | Unsupported platform fails closed |
@@ -74,14 +74,14 @@ checkpoint. There is no shared service or Git-backed runtime state.
 
 - macOS automatic File Transfer Assistant and causal capture have current-machine real
   run evidence.
-- Windows path selection, installer, safe-stop/manual routing, DirectShow command
-  construction, and shared media core have offline tests and Windows CI coverage.
-- Windows CI starts from only `bootstrap-windows.ps1`, retrieves the exact installer
-  through GitHub API using an explicit Python path, independently exercises codeload
-  extraction, then verifies embedded source, installs the pinned private runtime in an
-  isolated account layout, runs doctor, and uses that runtime for the full regression
-  gate. Real missing-Python winget installation remains a first-machine operation
-  because CI deliberately supplies a known Python to test the no-system-Python path.
+- Windows path selection, portable installer, safe-stop/manual routing, DirectShow
+  command construction, and shared media core have offline tests and Windows CI
+  coverage.
+- Windows CI builds the exact portable ZIP from fixed, hash-verified archives. It then
+  removes Git, system Python, and winget from `PATH`, points HTTP clients at a closed
+  local endpoint, disables pip indexes, and installs from only that ZIP. The installed
+  portable Python must prove FFmpeg, yt-dlp, EJS, and Deno readiness and convert a local
+  audio fixture into a fully decoded MP3 before the artifact is published.
 - macOS and Windows CI install the same pinned yt-dlp/EJS/Deno surface and offline
   tests prove that YouTube, X/Twitter, Xiaohongshu, Songy, and generic URLs select the
   same non-WeChat routes. CI does not guarantee a particular external URL remains

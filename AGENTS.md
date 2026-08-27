@@ -10,15 +10,16 @@ Do not duplicate or rewrite the media pipeline for one operating system.
 When the user asks to install/use this project or supplies an authorized replay,
 video, live, course, or direct-media link for MP3 extraction:
 
-1. Detect the native operating system without assuming Python or Git is already usable.
-2. On Windows, do **not** stop at “Python/FFmpeg/Git is missing.” If the request asks
-   to install or use the product, run `bootstrap-windows.ps1`; when the verified
-   installer already exists locally, running `install-windows.ps1` directly is also
-   valid. The acquisition bootstrap tries independent GitHub API, Git blob, Release
-   Asset, codeload, and jsDelivr routes with PowerShell, curl, or an explicit Codex
-   bundled Python. Every route must produce the fixed byte count and SHA-256 before
-   execution. The installer then expands its verified embedded source. Git, a GitHub
-   checkout, and `raw.githubusercontent.com` are not runtime prerequisites.
+1. Detect the native operating system without assuming Python, FFmpeg, Git, winget, or
+   an online package source is already usable.
+2. On 64-bit Windows, do **not** stop at a missing prerequisite. The primary first-use
+   artifact is the fixed `weixin-replay-to-mp3-windows-portable-v0.5.0.zip` Release
+   Asset. It contains Python 3.13.15, the Windows FFmpeg wheel, yt-dlp, EJS, Deno, the
+   product runtime, the Codex Skill, and `install-offline.ps1`. Verify the asset's fixed
+   byte count and SHA-256 from `docs/WINDOWS_OFFLINE_RELEASE.json`, expand it, and run
+   `install-offline.ps1`. The install phase must make no network request and must not
+   call Git, winget, or pip. `bootstrap-windows.ps1` and `install-windows.ps1` remain
+   supported online/checkout fallbacks, not the primary new-user route.
 3. On macOS, run `python3 scripts/bootstrap.py doctor`, read `state` and `preflight`,
    and run `python3 scripts/bootstrap.py install` when the explicit request asks to
    install/use the product and the state is `needs_install`.
@@ -30,51 +31,39 @@ video, live, course, or direct-media link for MP3 extraction:
 6. For a link-extraction request, follow the repository's `weixin-replay-to-mp3`
    Skill after readiness passes.
 
-Python 3.10 or newer is required for current cross-platform webpage extraction. Do not
-claim full readiness from an older Python runtime.
+Python 3.10 or newer is required for current cross-platform webpage extraction. The
+Windows portable package supplies its own fixed compatible interpreter and must use it
+for subsequent commands; do not depend on a system `python` command.
 
 ### Windows first-install command
 
-When a current checkout is available, first ask the Codex desktop workspace-dependency
-tool for its bundled Python path when that tool exists. Pass the returned Windows
-Python executable to the bootstrap; do not print or invent a path:
+Use the literal bootstrap capsule in `docs/WINDOWS_FIRST_PROMPT.md`. The capsule is
+part of the user's first message, so it does not require a checkout or a prior script
+download. It fetches one fixed portable ZIP through bounded Python, PowerShell, curl,
+or BITS clients, verifies its byte count and SHA-256, expands it, and invokes:
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\bootstrap-windows.ps1 `
-  -PythonExecutable "<EXACT_BUNDLED_OR_USER_PYTHON_PATH>"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install-offline.ps1
 ```
 
-If no bundled Python is reported, omit `-PythonExecutable`; the installer discovers a
-compatible Python or uses user-local `winget` as before.
-
-When there is no trustworthy checkout, do not diagnose the product as unsupported.
-Use the exact browser-readable recovery block in `docs/WINDOWS_INSTALL.md`. Its first
-route is the unauthenticated public GitHub Contents API on `api.github.com`, which is
-independent of Git HTTPS and raw GitHub. It also has a base64 Git-blob route, a fixed
-Release Asset, codeload archive extraction, and the three jsDelivr hosts. The preferred
-client is the Codex bundled Python when available, so a PowerShell network failure is
-not treated as proof that all terminal downloads are impossible.
-
-If the in-app browser can render this repository but terminal URL requests fail, this
-is a supported branch, not a reason to ask the user to copy the whole repository. Read
-the complete small `bootstrap-windows.ps1` source through the browser, write that exact
-text to the local workspace, verify it against the SHA-256 in
-`docs/WINDOWS_INSTALL.md`, and run it with the bundled Python path. If the browser can
-save the fixed tagged archive or installer locally, pass that exact file through
-`-LocalArtifact`; the bootstrap extracts only the root installer and verifies it.
-
-The direct installer remains fixed at `v0.4.2` and the bootstrap's automatic route is:
+If the capsule's terminal clients cannot retrieve the asset but the in-app browser can
+open GitHub, use that browser to download the **same fixed Release Asset** to the
+current user's Downloads directory. Do not transcribe a 1.5 MB installer or ask the
+user to copy repository files. Verify the downloaded ZIP against the fixed release
+metadata, then expand and run its offline installer. The checkout fallback remains:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\bootstrap-windows.ps1
 ```
 
-Do not make the user wait through repeated long attempts. Each client has bounded
-timeouts. After failure, report the attempted transport/client pairs from the
-bootstrap JSON. Ask the user to change network or transfer one release file only after
-GitHub API through bundled Python, codeload, Release Asset, jsDelivr, and any
-browser-downloaded local artifact have all been ruled out. First-time private package
-installation still needs an available package source unless its wheels are cached.
+For compatibility only, that older checkout bootstrap may query `api.github.com` and
+`codeload.github.com`; the portable first-use route above does not depend on either API.
+
+Do not repeat failed URLs indefinitely. The only unavoidable network boundary is
+transferring the single fixed portable ZIP. Once its bytes are local, installation and
+preflight are fully offline. If both terminal clients and the signed-in browser cannot
+transfer any file bytes, report that acquisition boundary precisely; do not mislabel
+it as missing dependencies or try to weaken TLS verification.
 
 `unsupported_platform` is valid for Linux/remote local-WeChat operation, not for a
 native Windows agent. If a Windows result says the README is macOS-only, it is stale or
@@ -115,7 +104,7 @@ Use the same provider, download, resume, conversion, and verification pipeline. 
 installed PowerShell command is:
 
 ```powershell
-python "$env:LOCALAPPDATA\WeixinReplayToMP3\runtime\weixin_replay_cli.py" `
+& "$env:LOCALAPPDATA\WeixinReplayToMP3\runtime\weixin-replay-to-mp3.cmd" `
   run "<USER_SUPPLIED_LINK>"
 ```
 
@@ -135,7 +124,7 @@ adapter and must never send or click blindly. If and only if a Weixin run report
 Wait for that explicit confirmation. Then, and only then, run:
 
 ```powershell
-python "$env:LOCALAPPDATA\WeixinReplayToMP3\runtime\weixin_replay_cli.py" `
+& "$env:LOCALAPPDATA\WeixinReplayToMP3\runtime\weixin-replay-to-mp3.cmd" `
   run "<USER_SUPPLIED_WEIXIN_LINK>" --manual-playback
 ```
 
@@ -199,6 +188,8 @@ available, provider, and whether the run reused prior verified state. Do not cal
 player window, candidate, download start, or partial file successful output.
 
 Before any public push, run `python scripts/release_check.py` on the available local
-platform and keep the original development workspaces untouched. Windows CI verifies
-the portable Python/installer surface; real Windows WeChat playback/runtime behavior
-must be described as pending until it has been exercised on a Windows machine.
+platform and keep the original development workspaces untouched. Windows CI must build
+the fixed portable asset, remove Git/system Python/winget from `PATH`, block online pip,
+install from only that ZIP, prove preflight, and convert a local audio fixture to a
+fully decoded MP3. Real Windows WeChat playback/runtime behavior remains a separate
+machine-evidence gate.
