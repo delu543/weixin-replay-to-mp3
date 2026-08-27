@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import shutil
 import threading
+import time
 import traceback
 import urllib.parse
 import uuid
@@ -43,6 +44,7 @@ from .weixin_pipeline_state import (
 
 
 WEIXIN_OFFICIAL_BLACKBOX_SPEED_MAX = 3.0
+WINDOWS_REPLACE_RETRY_DELAYS = (0.01, 0.02, 0.04, 0.08, 0.12, 0.18)
 DIAGNOSTIC_ONLY_ACTIONS = {"audit-cache"}
 MP3_REQUIRED_ACTIONS = {"convert", "blackbox-record", "health-check"}
 TITLE_QUERY_KEYS = {
@@ -57,6 +59,17 @@ TITLE_QUERY_KEYS = {
     "subject",
     "filename",
 }
+
+
+def _replace_with_bounded_retry(source: Path, target: Path) -> None:
+    for delay in (*WINDOWS_REPLACE_RETRY_DELAYS, None):
+        try:
+            source.replace(target)
+            return
+        except PermissionError:
+            if delay is None:
+                raise
+            time.sleep(delay)
 
 
 def _clean_url_title(value: object) -> str:
@@ -868,7 +881,7 @@ class JobStore:
         tmp_path = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
         try:
             tmp_path.write_text(json.dumps(status, ensure_ascii=False, indent=2), encoding="utf-8")
-            tmp_path.replace(path)
+            _replace_with_bounded_retry(tmp_path, path)
         finally:
             if tmp_path.exists():
                 tmp_path.unlink()
@@ -905,7 +918,7 @@ class JobStore:
         payload = {"ids": sorted(ids), "updated_at": now_iso()}
         try:
             tmp_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-            tmp_path.replace(path)
+            _replace_with_bounded_retry(tmp_path, path)
         finally:
             if tmp_path.exists():
                 tmp_path.unlink()

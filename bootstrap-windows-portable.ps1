@@ -12,8 +12,8 @@ $ErrorActionPreference = "Stop"
 $Version = "0.5.0"
 $AssetName = "weixin-replay-to-mp3-windows-portable-v0.5.0.zip"
 $AssetUrl = "https://github.com/delu543/weixin-replay-to-mp3/releases/download/v0.5.0/weixin-replay-to-mp3-windows-portable-v0.5.0.zip"
-$ExpectedBytes = 88193436
-$ExpectedSha256 = "12b53512db3b458c495dc2a4a894c47513a74484d1ca8a860e5294ac3945bbc9"
+$ExpectedBytes = 88193866
+$ExpectedSha256 = "c362b8766af52b785525ea0819efbf86a89caedbd95816c72a9339f1e8b8fdb4"
 $Failures = New-Object System.Collections.Generic.List[string]
 
 function Test-WindowsHost {
