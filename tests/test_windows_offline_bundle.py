@@ -20,10 +20,15 @@ class WindowsOfflineBundleTests(unittest.TestCase):
             root = Path(temporary)
             (root / "nested").mkdir()
             (root / "nested" / "payload.txt").write_text("fixed\n", encoding="ascii")
+            (root / "VERSION").write_text("fixed\n", encoding="ascii")
+            (root / "main.py").write_text("fixed\n", encoding="ascii")
             first = build_windows_offline_bundle.zip_tree(root)
             second = build_windows_offline_bundle.zip_tree(root)
             self.assertEqual(first, second)
             with zipfile.ZipFile(io.BytesIO(first)) as archive:
+                self.assertEqual(
+                    archive.namelist(), ["VERSION", "main.py", "nested/payload.txt"]
+                )
                 self.assertTrue(
                     all(item.compress_type == zipfile.ZIP_STORED for item in archive.infolist())
                 )

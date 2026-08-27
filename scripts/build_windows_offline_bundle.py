@@ -92,7 +92,8 @@ def zip_tree(root: Path) -> bytes:
     # Stored entries make the release byte-for-byte reproducible across the
     # different zlib builds on macOS development hosts and Windows runners.
     with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_STORED) as archive:
-        for path in sorted(root.rglob("*")):
+        paths = sorted(root.rglob("*"), key=lambda item: item.relative_to(root).as_posix())
+        for path in paths:
             if not path.is_file() or path.is_symlink():
                 continue
             relative = path.relative_to(root).as_posix()
@@ -184,7 +185,11 @@ def build_bundle(python_zip: Path, wheelhouse: Path, output: Path) -> dict[str, 
                 info.compress_type = zipfile.ZIP_STORED
                 info.create_system = 0
                 archive.writestr(info, payload)
-            for path in sorted(package_dir.rglob("*")):
+            package_paths = sorted(
+                package_dir.rglob("*"),
+                key=lambda item: item.relative_to(package_dir).as_posix(),
+            )
+            for path in package_paths:
                 if not path.is_file():
                     continue
                 relative = path.relative_to(temporary_root).as_posix()
