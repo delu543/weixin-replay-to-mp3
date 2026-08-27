@@ -24,11 +24,16 @@ web-link support requires Python 3.10 or newer. The pinned user-local runtime in
 FFmpeg, yt-dlp, local EJS assets, and Deno for both macOS and Windows.
 
 If Windows lacks Python, the installer uses `winget` to install user-local Python 3.12
-and continues. If Git clone or its HTTPS remote helper is missing, download the current
-`install-windows.ps1` from the repository's raw `main`; it obtains the GitHub source
-ZIP without Git. Do not stop after merely listing missing Python, FFmpeg, or Git, and
-do not describe native Windows as `unsupported_platform`. If the agent is running in
-WSL/Linux, switch the Codex app's agent environment to Windows native for this tool.
+and continues. If Git, its HTTPS remote helper, GitHub, or raw GitHub is unavailable,
+download the fixed self-contained installer from
+`https://cdn.jsdelivr.net/gh/delu543/weixin-replay-to-mp3@v0.4.0/install-windows.ps1`.
+It SHA-256-verifies and expands its own embedded source, so it must not request a
+repository ZIP afterward. If that CDN is unavailable, try the same path on
+`fastly.jsdelivr.net` and `gcore.jsdelivr.net`; if all are blocked, ask for transfer of
+that one installer file, not the repository. Do not stop after merely listing missing
+Python, FFmpeg, or Git, and do not describe native Windows as
+`unsupported_platform`. If the agent is running in WSL/Linux, switch the Codex app's
+agent environment to Windows native for this tool.
 
 ## Safety boundary
 

@@ -8,25 +8,42 @@ report that says README is macOS-only came from stale/wrong source or from runni
 agent inside WSL/Linux.
 
 1. In the ChatGPT/Codex Windows settings, use the Windows-native agent for this tool.
-2. Refresh the current GitHub `main`; do not rely on a cached README.
+2. Prefer the fixed self-contained installer below; do not rely on a cached README.
 3. Run `install-windows.ps1`. Missing Python, FFmpeg, or a Git HTTPS helper is an
    installation condition, not evidence that Windows is unsupported.
 
-When Git clone reports a missing HTTPS remote helper, download and run the installer
-without Git:
+When Git clone, GitHub, or `raw.githubusercontent.com` is unavailable, download the
+fixed installer through jsDelivr. It embeds the verified source and will not make a
+second GitHub request:
 
 ```powershell
 $installer = Join-Path $env:TEMP "weixin-replay-to-mp3-install.ps1"
-Invoke-WebRequest -UseBasicParsing `
-  -Uri "https://raw.githubusercontent.com/delu543/weixin-replay-to-mp3/main/install-windows.ps1" `
-  -OutFile $installer
+$urls = @(
+  "https://cdn.jsdelivr.net/gh/delu543/weixin-replay-to-mp3@v0.4.0/install-windows.ps1",
+  "https://fastly.jsdelivr.net/gh/delu543/weixin-replay-to-mp3@v0.4.0/install-windows.ps1",
+  "https://gcore.jsdelivr.net/gh/delu543/weixin-replay-to-mp3@v0.4.0/install-windows.ps1"
+)
+$downloaded = $false
+foreach ($url in $urls) {
+  try {
+    Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $installer
+    if ((Get-Item -LiteralPath $installer).Length -lt 100000) { throw "incomplete installer" }
+    $downloaded = $true
+    break
+  } catch { }
+}
+if (-not $downloaded) { throw "All installer download channels failed" }
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer
 ```
 
-The installer discovers or installs user-local Python, downloads the GitHub source ZIP
-when needed, then installs pinned FFmpeg and web tools in its private venv. Codex should
+If every download endpoint is blocked, transfer this same tagged
+`install-windows.ps1` file from another device. Do not request or rebuild a repository
+ZIP: the one PowerShell file is the source rescue kit. The installer verifies the
+embedded version, SHA-256, paths, and required files, discovers or installs user-local
+Python, then installs pinned FFmpeg and web tools in its private venv. Codex should
 continue through the post-install readiness check instead of stopping after listing
-missing dependencies.
+missing dependencies. See [Windows installation and rescue](WINDOWS_INSTALL.md) for
+the fixed outer-file checksum.
 
 Full Xiaohongshu/YouTube/X/Twitter/generic webpage support requires Python 3.10 or
 newer. An older Python runtime is not full product readiness.

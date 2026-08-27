@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -120,14 +121,23 @@ def scan() -> dict[str, Any]:
         "PRIVACY.md",
         "SECURITY.md",
         "docs/CAPABILITY_MAP.md",
+        "docs/WINDOWS_INSTALL.md",
         "portable_skill/weixin-replay-to-mp3/SKILL.md",
         "requirements-windows.txt",
         "install-windows.ps1",
+        "scripts/build_windows_installer.py",
+        "scripts/install-windows.template.ps1",
         "weixin_replay_cli.py",
     ]
     for name in required:
         if not (ROOT / name).is_file():
             errors.append(f"missing_required_file:{name}")
+    installer = ROOT / "install-windows.ps1"
+    windows_install = ROOT / "docs" / "WINDOWS_INSTALL.md"
+    if installer.is_file() and windows_install.is_file():
+        installer_sha256 = hashlib.sha256(installer.read_bytes()).hexdigest()
+        if installer_sha256 not in windows_install.read_text(encoding="utf-8"):
+            errors.append("windows_installer_checksum_stale")
     return {"checked_files": checked, "errors": sorted(set(errors))}
 
 
@@ -148,15 +158,35 @@ def run_tests() -> dict[str, Any]:
     }
 
 
+def run_generated_checks() -> dict[str, Any]:
+    proc = subprocess.run(
+        [sys.executable, str(ROOT / "scripts" / "build_windows_installer.py"), "--check"],
+        cwd=str(ROOT),
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    return {
+        "exit_code": proc.returncode,
+        "stdout_tail": proc.stdout[-4000:],
+        "stderr_tail": proc.stderr[-4000:],
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--scan-only", action="store_true")
     args = parser.parse_args()
     result: dict[str, Any] = {"scan": scan()}
     if not args.scan_only:
+        result["generated_checks"] = run_generated_checks()
         result["tests"] = run_tests()
     failed = bool(result["scan"]["errors"]) or (
-        not args.scan_only and result["tests"]["exit_code"] != 0
+        not args.scan_only
+        and (
+            result["generated_checks"]["exit_code"] != 0
+            or result["tests"]["exit_code"] != 0
+        )
     )
     result["status"] = "failed" if failed else "passed"
     print(json.dumps(result, ensure_ascii=False, indent=2))

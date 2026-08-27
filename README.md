@@ -24,8 +24,9 @@
 
 Windows 新电脑不需要预先安装 Python、FFmpeg 或 Git。用户明确要求安装本工具后，
 Codex 应运行仓库的 PowerShell 安装入口：缺少 Python 就通过 Windows 自带的 `winget`
-安装到当前用户；FFmpeg、yt-dlp、EJS 和 Deno 随后安装到工具自己的私有环境。Git 克隆
-不可用时改用 GitHub 源码 ZIP，不把 Git 当成产品运行依赖。
+安装到当前用户；FFmpeg、yt-dlp、EJS 和 Deno 随后安装到工具自己的私有环境。安装脚本
+本身内置固定版本、经过 SHA-256 校验的最小源码，因此 Git、GitHub 源码 ZIP 和
+`raw.githubusercontent.com` 都不是产品运行依赖。
 
 第一次，把下面整段发给 Codex：
 
@@ -38,8 +39,10 @@ https://github.com/delu543/weixin-replay-to-mp3
 按仓库说明完成检查和当前用户安装。
 
 如果 Windows 缺少 Python、FFmpeg 或可用的 Git HTTPS helper，请直接运行仓库提供的
-Windows 安装入口自动补齐或使用 GitHub ZIP；不要仅报告缺少依赖，也不要把 Windows
-误判为 unsupported_platform。
+Windows 安装入口自动补齐。若 GitHub 仓库、Git clone 或 raw GitHub 无法访问，改从
+https://cdn.jsdelivr.net/gh/delu543/weixin-replay-to-mp3@v0.4.0/install-windows.ps1
+取得这个单文件安装器；不要仅报告缺少依赖，也不要把 Windows 误判为
+unsupported_platform，更不要继续索要整个仓库 ZIP。
 
 安装并检查通过后，请告诉我“已经可以发送链接”。以后我只发送本人有权处理的视频、
 直播或课程链接，你直接帮我导出 MP3；如果视频号必须手动操作微信，只告诉我最少的
@@ -157,16 +160,36 @@ Windows：
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install-windows.ps1
 ```
 
-如果 Git 克隆失败或报缺少 HTTPS remote helper，Codex 应直接下载当前 `main` 的可审计
-安装脚本；脚本会使用 GitHub 源码 ZIP：
+如果 Git 克隆、HTTPS remote helper、`github.com` 或 `raw.githubusercontent.com` 不可
+用，Codex 应直接下载固定版本的自包含安装脚本。下面的命令依次尝试 jsDelivr 的多个
+入口；拿到脚本后不会再次下载 GitHub 源码：
 
 ```powershell
 $installer = Join-Path $env:TEMP "weixin-replay-to-mp3-install.ps1"
-Invoke-WebRequest -UseBasicParsing `
-  -Uri "https://raw.githubusercontent.com/delu543/weixin-replay-to-mp3/main/install-windows.ps1" `
-  -OutFile $installer
+$urls = @(
+  "https://cdn.jsdelivr.net/gh/delu543/weixin-replay-to-mp3@v0.4.0/install-windows.ps1",
+  "https://fastly.jsdelivr.net/gh/delu543/weixin-replay-to-mp3@v0.4.0/install-windows.ps1",
+  "https://gcore.jsdelivr.net/gh/delu543/weixin-replay-to-mp3@v0.4.0/install-windows.ps1"
+)
+$downloaded = $false
+foreach ($url in $urls) {
+  try {
+    Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $installer
+    if ((Get-Item -LiteralPath $installer).Length -lt 100000) { throw "incomplete installer" }
+    $downloaded = $true
+    break
+  } catch { }
+}
+if (-not $downloaded) { throw "All installer download channels failed" }
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer
 ```
+
+如果这些外部下载入口全部被当前网络拦截，只需从另一台能访问的电脑复制同一个
+`install-windows.ps1` 单文件到 Windows 电脑后运行，不需要复制或打包整个仓库。这个
+文件就是可转移的源码救援包；它会先验证内置源码的版本、SHA-256、路径和必需文件，再
+落到当前账户的 LocalAppData。首次安装 Python 和私有依赖仍需要正常访问 Microsoft 和
+Python 包源，已有依赖缓存时可直接复用。固定校验值和更短的排障说明见
+[Windows 安装与救援](docs/WINDOWS_INSTALL.md)。
 
 macOS 仍使用：
 
@@ -178,7 +201,7 @@ python3 scripts/bootstrap.py install
 只有用户明确要求安装或使用后才运行安装。Windows 安装入口会：
 
 1. 缺少 Python 3.10+ 时，通过 `winget` 安装当前用户范围的 Python 3.12；
-2. Git 不可用时下载当前 GitHub `main` 源码 ZIP；
+2. 没有本地源码时，从安装脚本内解出固定版本、SHA-256 已校验的最小源码，不访问 GitHub；
 3. 把运行源码复制到当前用户的私有应用目录；
 4. 在私有 venv 中安装固定版本、固定哈希、与当前系统匹配的 `imageio-ffmpeg`、
    `yt-dlp`、`yt-dlp-ejs` 和 Deno；
@@ -287,9 +310,10 @@ python scripts/release_check.py
 ```
 
 检查包括：代码/私密数据允许清单、绝对开发路径、凭据模式、大文件/媒体、Codex Skill、
-安装器和不触碰真实微信的离线回归。GitHub Actions 会在 macOS 与 Windows 上分别安装
-固定哈希的 FFmpeg、yt-dlp、EJS 和 Deno 依赖并运行同一套测试；这会验证跨平台路由与
-依赖，但不等同于每个外部网站或 Windows 微信真机都已验证，相关边界会继续明确标注。
+自包含安装器可复现性和不触碰真实微信的离线回归。Windows CI 会把安装脚本单独复制到
+空目录，校验并解出内置源码、安装私有 FFmpeg/yt-dlp/EJS/Deno、执行 doctor，再用该
+私有运行时跑完整回归；macOS 继续跑同一核心测试。这会验证分发、跨平台路由与依赖，
+但不等同于每个外部网站或 Windows 微信真机都已验证，相关边界会继续明确标注。
 
 ## 许可证与声明
 

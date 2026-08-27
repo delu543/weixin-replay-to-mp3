@@ -13,9 +13,10 @@ video, live, course, or direct-media link for MP3 extraction:
 1. Detect the native operating system without assuming Python or Git is already usable.
 2. On Windows, do **not** stop at “Python/FFmpeg/Git is missing.” If the request asks
    to install or use the product, run the repository's `install-windows.ps1`. It
-   installs user-local Python through `winget` when needed, obtains the current source
-   through a GitHub archive when Git clone/HTTPS is broken, and delegates FFmpeg,
-   yt-dlp, EJS, and Deno to the pinned private runtime installer.
+   installs user-local Python through `winget` when needed and expands its own
+   fixed-version, SHA-256-verified embedded source when no checkout is available. Git,
+   GitHub source ZIP, and `raw.githubusercontent.com` are not runtime prerequisites.
+   FFmpeg, yt-dlp, EJS, and Deno remain pinned in the private runtime.
 3. On macOS, run `python3 scripts/bootstrap.py doctor`, read `state` and `preflight`,
    and run `python3 scripts/bootstrap.py install` when the explicit request asks to
    install/use the product and the state is `needs_install`.
@@ -38,18 +39,37 @@ When a current checkout is available, run:
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install-windows.ps1
 ```
 
-When Git is missing, `git-remote-https` is broken, or there is no trustworthy local
-checkout, do not diagnose the product as unsupported. Download the auditable installer
-from the current `main` branch and run it; it uses the GitHub source ZIP and does not
-require Git:
+When Git is missing, `git-remote-https` is broken, raw GitHub is unavailable, or there
+is no trustworthy local checkout, do not diagnose the product as unsupported. Download
+the fixed `v0.4.0` self-contained installer through the jsDelivr multi-CDN endpoint and
+run it. The installer validates and expands its embedded source; it never performs a
+second GitHub source download:
 
 ```powershell
 $installer = Join-Path $env:TEMP "weixin-replay-to-mp3-install.ps1"
-Invoke-WebRequest -UseBasicParsing `
-  -Uri "https://raw.githubusercontent.com/delu543/weixin-replay-to-mp3/main/install-windows.ps1" `
-  -OutFile $installer
+$urls = @(
+  "https://cdn.jsdelivr.net/gh/delu543/weixin-replay-to-mp3@v0.4.0/install-windows.ps1",
+  "https://fastly.jsdelivr.net/gh/delu543/weixin-replay-to-mp3@v0.4.0/install-windows.ps1",
+  "https://gcore.jsdelivr.net/gh/delu543/weixin-replay-to-mp3@v0.4.0/install-windows.ps1"
+)
+$downloaded = $false
+foreach ($url in $urls) {
+  try {
+    Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $installer
+    if ((Get-Item -LiteralPath $installer).Length -lt 100000) { throw "incomplete installer" }
+    $downloaded = $true
+    break
+  } catch { }
+}
+if (-not $downloaded) { throw "All installer download channels failed" }
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer
 ```
+
+If all download channels are blocked, the only required transfer is this same
+`install-windows.ps1` file from the tagged release. Once it exists locally, run it
+directly; do not request a repository ZIP. The file is also the offline source rescue
+kit, although first-time Python/private dependency installation still needs its normal
+Microsoft/Python package network unless those dependencies are already cached.
 
 `unsupported_platform` is valid for Linux/remote local-WeChat operation, not for a
 native Windows agent. If a Windows result says the README is macOS-only, it is stale or

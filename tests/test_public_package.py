@@ -9,7 +9,7 @@ from unittest import mock
 
 import weixin_replay_cli as cli
 from replay_mp3_studio import config, fast_pipeline, user_storage
-from scripts import bootstrap, release_check
+from scripts import bootstrap, build_windows_installer, release_check
 
 
 class PublicPackageTests(unittest.TestCase):
@@ -211,13 +211,25 @@ class PublicPackageTests(unittest.TestCase):
     def test_windows_zero_prerequisite_installer_is_safe_and_git_optional(self) -> None:
         script = (bootstrap.SOURCE_ROOT / "install-windows.ps1").read_text(encoding="utf-8")
         self.assertIn("Python.Python.3.12", script)
-        self.assertIn("github_archive_without_git", script)
+        self.assertIn("embedded_verified_bundle", script)
+        self.assertIn("Test-EmbeddedSourceBundle", script)
         self.assertIn('git_required = $false', script)
+        self.assertIn('github_source_required = $false', script)
+        self.assertNotIn('$candidates += $PSScriptRoot', script)
         self.assertIn('"scripts\\bootstrap.py"', script)
         self.assertIn('"install"', script)
         self.assertIn('"doctor"', script)
+        self.assertNotIn("Invoke-WebRequest", script)
         self.assertNotIn("Set-ExecutionPolicy", script)
         self.assertNotIn("Remove-Item", script)
+
+    def test_windows_installer_embeds_the_current_deterministic_source(self) -> None:
+        rendered, metadata = build_windows_installer.render_installer()
+        self.assertEqual(rendered, build_windows_installer.OUTPUT.read_bytes())
+        self.assertEqual(metadata["version"], bootstrap.version())
+        self.assertGreaterEqual(metadata["source_file_count"], 80)
+        self.assertLess(metadata["installer_bytes"], release_check.MAX_SOURCE_BYTES)
+        self.assertTrue(rendered.isascii())
 
     def test_windows_onboarding_recovers_instead_of_reporting_macos_only(self) -> None:
         agents = (bootstrap.SOURCE_ROOT / "AGENTS.md").read_text(encoding="utf-8")
@@ -227,7 +239,7 @@ class PublicPackageTests(unittest.TestCase):
         )
         for text in (agents, readme, troubleshooting):
             self.assertIn("install-windows.ps1", text)
-            self.assertIn("githubusercontent.com/delu543/weixin-replay-to-mp3/main", text)
+            self.assertIn("cdn.jsdelivr.net/gh/delu543/weixin-replay-to-mp3@v0.4.0", text)
         self.assertIn("不需要预先安装 Python、FFmpeg 或 Git", readme)
         self.assertIn("not for a native Windows agent", troubleshooting)
         self.assertIn("not evidence that Windows is unsupported", troubleshooting)

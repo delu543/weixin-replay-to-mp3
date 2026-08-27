@@ -29,9 +29,12 @@ jobs:
 
   windows:
     runs-on: windows-2022
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
       - name: Check zero-prerequisite Windows bootstrap entry
         shell: pwsh
         run: |
@@ -44,21 +47,35 @@ jobs:
           Copy-Item .\install-windows.ps1 $standalone
           $remote = powershell.exe -NoProfile -ExecutionPolicy Bypass `
             -File $standalone -CheckOnly | ConvertFrom-Json
-          if ($remote.source_strategy -ne "github_archive_without_git" -or $remote.git_required) {
-            throw "Git-free Windows installer check failed"
+          if ($remote.source_strategy -ne "embedded_verified_bundle" -or
+              $remote.git_required -or $remote.github_source_required -or
+              -not $remote.embedded_source_ready -or $remote.embedded_source_version -ne "0.4.0") {
+            throw "Self-contained Windows installer check failed"
           }
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - name: Install pinned media and web-link dependencies
+      - name: Run standalone installer and regression gate
         shell: pwsh
         run: |
-          python -m venv work/venv
-          work/venv/Scripts/python.exe -m pip install --disable-pip-version-check `
-            --require-hashes -r requirements-windows.txt
-          work/venv/Scripts/python.exe -m yt_dlp --version
-          work/venv/Scripts/deno.exe --version
-          $ffmpeg = work/venv/Scripts/python.exe -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())"
-          "FFMPEG=$ffmpeg" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-      - name: Run clean-source and offline regression gate
-        run: python scripts/release_check.py
+          $isolated = Join-Path $env:RUNNER_TEMP "self-contained-install"
+          $env:LOCALAPPDATA = Join-Path $isolated "local"
+          $env:USERPROFILE = Join-Path $isolated "profile"
+          $env:HOME = $env:USERPROFILE
+          New-Item -ItemType Directory -Path $env:LOCALAPPDATA, $env:USERPROFILE -Force | Out-Null
+          $standalone = Join-Path $env:RUNNER_TEMP "install-windows.ps1"
+          $installOutput = powershell.exe -NoProfile -ExecutionPolicy Bypass -File $standalone 2>&1
+          $installOutput | ForEach-Object { Write-Host $_ }
+          if ($LASTEXITCODE -ne 0) {
+            throw "Standalone Windows install failed with exit code $LASTEXITCODE"
+          }
+          $runtime = Join-Path $env:LOCALAPPDATA "WeixinReplayToMP3\runtime"
+          $runtimePython = Join-Path $runtime "work\venv\Scripts\python.exe"
+          $runtimeCli = Join-Path $runtime "weixin_replay_cli.py"
+          $preflight = & $runtimePython $runtimeCli preflight | ConvertFrom-Json
+          if (-not $preflight.ready -or -not $preflight.web_link_ready) {
+            throw "Installed private runtime is not ready"
+          }
+          $ffmpeg = & $runtimePython -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())"
+          $env:FFMPEG = $ffmpeg
+          & $runtimePython scripts/release_check.py
+          if ($LASTEXITCODE -ne 0) {
+            throw "Windows release gate failed with exit code $LASTEXITCODE"
+          }
