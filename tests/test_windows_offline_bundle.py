@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import io
 import json
 import tempfile
 import unittest
 import zipfile
 from pathlib import Path
 
+from scripts import build_windows_offline_bundle
 from tools import install_offline_wheels
 
 
@@ -13,6 +15,19 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class WindowsOfflineBundleTests(unittest.TestCase):
+    def test_runtime_source_zip_is_cross_platform_byte_deterministic(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "nested").mkdir()
+            (root / "nested" / "payload.txt").write_text("fixed\n", encoding="ascii")
+            first = build_windows_offline_bundle.zip_tree(root)
+            second = build_windows_offline_bundle.zip_tree(root)
+            self.assertEqual(first, second)
+            with zipfile.ZipFile(io.BytesIO(first)) as archive:
+                self.assertTrue(
+                    all(item.compress_type == zipfile.ZIP_STORED for item in archive.infolist())
+                )
+
     def test_fixed_portable_lock_contains_every_runtime_dependency(self) -> None:
         lock = json.loads(
             (ROOT / "scripts" / "windows-portable.lock.json").read_text(encoding="utf-8")

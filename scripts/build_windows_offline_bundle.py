@@ -89,16 +89,18 @@ def copy_runtime_source(staging: Path, version: str) -> None:
 
 def zip_tree(root: Path) -> bytes:
     buffer = io.BytesIO()
-    with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
+    # Stored entries make the release byte-for-byte reproducible across the
+    # different zlib builds on macOS development hosts and Windows runners.
+    with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_STORED) as archive:
         for path in sorted(root.rglob("*")):
             if not path.is_file() or path.is_symlink():
                 continue
             relative = path.relative_to(root).as_posix()
             info = zipfile.ZipInfo(relative, FIXED_ZIP_TIME)
-            info.compress_type = zipfile.ZIP_DEFLATED
+            info.compress_type = zipfile.ZIP_STORED
             info.create_system = 0
             info.external_attr = 0o100644 << 16
-            archive.writestr(info, path.read_bytes(), compress_type=zipfile.ZIP_DEFLATED, compresslevel=9)
+            archive.writestr(info, path.read_bytes())
     return buffer.getvalue()
 
 
