@@ -181,7 +181,7 @@ try {
     $pthPath = Join-Path $scriptsRoot ([string]$manifest.python.pth_filename)
     $pthText = (
         [string]$manifest.python.stdlib_zip + "`r`n" +
-        ".`r`n../Lib/site-packages`r`n../../..`r`n"
+        ".`r`n..\Lib\site-packages`r`n..\..\..`r`n"
     )
     [IO.File]::WriteAllText($pthPath, $pthText, [Text.Encoding]::ASCII)
 

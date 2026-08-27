@@ -70,6 +70,7 @@ class WindowsOfflineBundleTests(unittest.TestCase):
         self.assertIn("Read-VerifiedManifest", template)
         self.assertIn("Invoke-Preflight", template)
         self.assertIn("'(^|[\\\\/])\\.\\.([\\\\/]|$)'", template)
+        self.assertIn('".`r`n..\\Lib\\site-packages`r`n..\\..\\..`r`n"', template)
         for forbidden in (
             "Invoke-WebRequest",
             "Start-BitsTransfer",
