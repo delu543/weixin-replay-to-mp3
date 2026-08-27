@@ -195,6 +195,10 @@ def ensure_ffmpeg(skip_deps: bool) -> str:
     venv.parent.mkdir(parents=True, exist_ok=True)
     subprocess.run([sys.executable, "-m", "venv", str(venv)], check=True)
     python = venv_python(venv)
+    pip_cache = APP_ROOT / "cache" / "pip"
+    pip_cache.mkdir(parents=True, exist_ok=True)
+    pip_env = os.environ.copy()
+    pip_env["PIP_CACHE_DIR"] = str(pip_cache)
     subprocess.run(
         [
             str(python),
@@ -207,6 +211,7 @@ def ensure_ffmpeg(skip_deps: bool) -> str:
             str(requirements_path()),
         ],
         check=True,
+        env=pip_env,
     )
     result = external_ffmpeg or installed_ffmpeg()
     if not result:

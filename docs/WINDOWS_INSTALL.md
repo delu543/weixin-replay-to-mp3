@@ -9,8 +9,8 @@
 
 | 文件 | 字节数 | SHA-256 |
 | --- | ---: | --- |
-| `bootstrap-windows.ps1` | 14,085 | `c7c9ad148fcae3cd1df62344d91b1d12dfb536f760ebfa5a9bf50bf1ae86b7c1` |
-| `install-windows.ps1` | 1,532,424 | `44c28379bf01a22cbcc1548f33de3e194cad11841539d803f061bf481604758a` |
+| `bootstrap-windows.ps1` | 14,085 | `7ce81fde46bbfb590ac788aa66af908c8ff0afa42e17460215b7f6d669e88b04` |
+| `install-windows.ps1` | 1,532,682 | `8e1763d4ef2fabdfe52f191de47520de3ccd3f6f046062ce7076524432757dee` |
 
 任何来源只要字节数或 SHA-256 不一致就不执行。
 
@@ -39,7 +39,7 @@ $url = "https://api.github.com/repos/delu543/weixin-replay-to-mp3/contents/boots
 Invoke-WebRequest -UseBasicParsing -Uri $url -Headers $headers -OutFile $bootstrap -TimeoutSec 30
 if ((Get-Item -LiteralPath $bootstrap).Length -ne 14085) { throw "bootstrap length mismatch" }
 $actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $bootstrap).Hash.ToLowerInvariant()
-if ($actual -ne "c7c9ad148fcae3cd1df62344d91b1d12dfb536f760ebfa5a9bf50bf1ae86b7c1") {
+if ($actual -ne "7ce81fde46bbfb590ac788aa66af908c8ff0afa42e17460215b7f6d669e88b04") {
   throw "bootstrap SHA-256 mismatch"
 }
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File $bootstrap
@@ -57,7 +57,7 @@ import hashlib, sys, urllib.request
 url, output = sys.argv[1:3]
 request = urllib.request.Request(url, headers={"Accept": "application/vnd.github.raw+json", "User-Agent": "weixin-replay-to-mp3-bootstrap/0.4.2"})
 data = urllib.request.urlopen(request, timeout=45).read()
-if len(data) != 14085 or hashlib.sha256(data).hexdigest() != "c7c9ad148fcae3cd1df62344d91b1d12dfb536f760ebfa5a9bf50bf1ae86b7c1":
+if len(data) != 14085 or hashlib.sha256(data).hexdigest() != "7ce81fde46bbfb590ac788aa66af908c8ff0afa42e17460215b7f6d669e88b04":
     raise SystemExit("bootstrap integrity verification failed")
 open(output, "wb").write(data)
 '@
@@ -107,7 +107,7 @@ yt-dlp、EJS 和 Deno 安装到私有 venv。Git 和系统 FFmpeg 都不是必�
 
 ```powershell
 $actual = (Get-FileHash -Algorithm SHA256 -LiteralPath .\install-windows.ps1).Hash.ToLowerInvariant()
-if ($actual -ne "44c28379bf01a22cbcc1548f33de3e194cad11841539d803f061bf481604758a") {
+if ($actual -ne "8e1763d4ef2fabdfe52f191de47520de3ccd3f6f046062ce7076524432757dee") {
   throw "installer SHA-256 mismatch"
 }
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install-windows.ps1
