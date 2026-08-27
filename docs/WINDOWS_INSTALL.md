@@ -9,7 +9,7 @@
 
 | 文件 | 字节数 | SHA-256 |
 | --- | ---: | --- |
-| `bootstrap-windows.ps1` | 13,800 | `a6c27a4a15beb0ac1bd337156a46710be497d08ffd71036905fa7e7c0e6f4750` |
+| `bootstrap-windows.ps1` | 14,085 | `c7c9ad148fcae3cd1df62344d91b1d12dfb536f760ebfa5a9bf50bf1ae86b7c1` |
 | `install-windows.ps1` | 1,532,424 | `44c28379bf01a22cbcc1548f33de3e194cad11841539d803f061bf481604758a` |
 
 任何来源只要字节数或 SHA-256 不一致就不执行。
@@ -37,9 +37,9 @@ $headers = @{
 }
 $url = "https://api.github.com/repos/delu543/weixin-replay-to-mp3/contents/bootstrap-windows.ps1?ref=v0.4.2"
 Invoke-WebRequest -UseBasicParsing -Uri $url -Headers $headers -OutFile $bootstrap -TimeoutSec 30
-if ((Get-Item -LiteralPath $bootstrap).Length -ne 13800) { throw "bootstrap length mismatch" }
+if ((Get-Item -LiteralPath $bootstrap).Length -ne 14085) { throw "bootstrap length mismatch" }
 $actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $bootstrap).Hash.ToLowerInvariant()
-if ($actual -ne "a6c27a4a15beb0ac1bd337156a46710be497d08ffd71036905fa7e7c0e6f4750") {
+if ($actual -ne "c7c9ad148fcae3cd1df62344d91b1d12dfb536f760ebfa5a9bf50bf1ae86b7c1") {
   throw "bootstrap SHA-256 mismatch"
 }
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File $bootstrap
@@ -50,9 +50,19 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File $bootstrap
 ```powershell
 $python = "<CODEX 返回的精确 Windows Python 路径>"
 $bootstrap = Join-Path $env:TEMP "bootstrap-windows-v0.4.2.ps1"
+$downloader = Join-Path $env:TEMP "weixin-bootstrap-download.py"
 $url = "https://api.github.com/repos/delu543/weixin-replay-to-mp3/contents/bootstrap-windows.ps1?ref=v0.4.2"
-$code = 'import hashlib,sys,urllib.request; u,o=sys.argv[1:3]; r=urllib.request.Request(u,headers={"Accept":"application/vnd.github.raw+json","User-Agent":"weixin-replay-to-mp3-bootstrap/0.4.2"}); d=urllib.request.urlopen(r,timeout=45).read(); assert len(d)==13800 and hashlib.sha256(d).hexdigest()=="a6c27a4a15beb0ac1bd337156a46710be497d08ffd71036905fa7e7c0e6f4750"; open(o,"wb").write(d)'
-& $python -c $code $url $bootstrap
+$code = @'
+import hashlib, sys, urllib.request
+url, output = sys.argv[1:3]
+request = urllib.request.Request(url, headers={"Accept": "application/vnd.github.raw+json", "User-Agent": "weixin-replay-to-mp3-bootstrap/0.4.2"})
+data = urllib.request.urlopen(request, timeout=45).read()
+if len(data) != 14085 or hashlib.sha256(data).hexdigest() != "c7c9ad148fcae3cd1df62344d91b1d12dfb536f760ebfa5a9bf50bf1ae86b7c1":
+    raise SystemExit("bootstrap integrity verification failed")
+open(output, "wb").write(data)
+'@
+[System.IO.File]::WriteAllText($downloader, $code, [System.Text.Encoding]::ASCII)
+& $python $downloader $url $bootstrap
 if ($LASTEXITCODE -ne 0) { throw "bundled Python could not acquire the verified bootstrap" }
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File $bootstrap -PythonExecutable $python
 ```
@@ -65,7 +75,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File $bootstrap -PythonExecut
 https://github.com/delu543/weixin-replay-to-mp3/blob/v0.4.2/bootstrap-windows.ps1
 ```
 
-读取完整的 13,800 字节 ASCII 源码，精确写入本地 `bootstrap-windows.ps1`；按上表验证后
+读取完整的 14,085 字节 ASCII 源码，精确写入本地 `bootstrap-windows.ps1`；按上表验证后
 运行。若浏览器能保存以下任一文件，也可直接作为本地输入：
 
 ```text

@@ -122,6 +122,7 @@ function Invoke-UrlDownload {
                 $headerBase64 = [System.Convert]::ToBase64String(
                     [System.Text.Encoding]::UTF8.GetBytes($headerJson)
                 )
+                $pythonScript = New-CandidatePath -Suffix ".py"
                 $code = @'
 import base64, json, shutil, sys, urllib.request
 url, output, headers_base64 = sys.argv[1:4]
@@ -130,8 +131,12 @@ request = urllib.request.Request(url, headers=headers)
 with urllib.request.urlopen(request, timeout=45) as response, open(output, "wb") as target:
     shutil.copyfileobj(response, target)
 '@
-                & $PythonExecutable -c $code $Url $OutputPath $headerBase64
-                if ($LASTEXITCODE -ne 0) { throw "Python downloader exit code $LASTEXITCODE" }
+                try {
+                    [System.IO.File]::WriteAllText($pythonScript, $code, [System.Text.Encoding]::ASCII)
+                    & $PythonExecutable $pythonScript $Url $OutputPath $headerBase64
+                    if ($LASTEXITCODE -ne 0) { throw "Python downloader exit code $LASTEXITCODE" }
+                }
+                finally { Clear-Candidate -Path $pythonScript }
             }
             elseif ($client -eq "Bits") {
                 Import-Module BitsTransfer -ErrorAction Stop
