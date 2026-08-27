@@ -28,6 +28,24 @@ class WindowsOfflineBundleTests(unittest.TestCase):
                     all(item.compress_type == zipfile.ZIP_STORED for item in archive.infolist())
                 )
 
+    def test_generated_runtime_files_have_fixed_newline_bytes(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            build_windows_offline_bundle.copy_runtime_source(root, "test-version")
+            self.assertEqual(
+                (root / "runtime" / build_windows_offline_bundle.MARKER).read_bytes(),
+                b"test-version\n",
+            )
+            self.assertEqual(
+                (root / "skill" / build_windows_offline_bundle.MARKER).read_bytes(),
+                b"test-version\n",
+            )
+            self.assertEqual(
+                (root / "runtime" / "weixin-replay-to-mp3.cmd").read_bytes(),
+                b'@echo off\r\n"%~dp0work\\venv\\Scripts\\python.exe" '
+                b'"%~dp0weixin_replay_cli.py" %*\r\n',
+            )
+
     def test_fixed_portable_lock_contains_every_runtime_dependency(self) -> None:
         lock = json.loads(
             (ROOT / "scripts" / "windows-portable.lock.json").read_text(encoding="utf-8")

@@ -77,14 +77,14 @@ def copy_runtime_source(staging: Path, version: str) -> None:
         dirs_exist_ok=True,
         ignore=shutil.ignore_patterns("__pycache__", "*.pyc", ".DS_Store"),
     )
-    (runtime / MARKER).write_text(version + "\n", encoding="ascii")
-    (skill / MARKER).write_text(version + "\n", encoding="ascii")
+    (runtime / MARKER).write_bytes((version + "\n").encode("ascii"))
+    (skill / MARKER).write_bytes((version + "\n").encode("ascii"))
     launcher = (
         "@echo off\r\n"
         '"%~dp0work\\venv\\Scripts\\python.exe" '
         '"%~dp0weixin_replay_cli.py" %*\r\n'
     )
-    (runtime / "weixin-replay-to-mp3.cmd").write_text(launcher, encoding="ascii")
+    (runtime / "weixin-replay-to-mp3.cmd").write_bytes(launcher.encode("ascii"))
 
 
 def zip_tree(root: Path) -> bytes:
