@@ -49,7 +49,7 @@ jobs:
             -File $standalone -CheckOnly | ConvertFrom-Json
           if ($remote.source_strategy -ne "embedded_verified_bundle" -or
               $remote.git_required -or $remote.github_source_required -or
-              -not $remote.embedded_source_ready -or $remote.embedded_source_version -ne "0.4.0") {
+              -not $remote.embedded_source_ready -or $remote.embedded_source_version -ne "0.4.1") {
             throw "Self-contained Windows installer check failed"
           }
       - name: Run standalone installer and regression gate

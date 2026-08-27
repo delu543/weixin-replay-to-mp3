@@ -139,7 +139,7 @@ def doctor_payload() -> dict[str, Any]:
 
 def cmd_doctor(args: argparse.Namespace) -> int:
     payload = doctor_payload()
-    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    print(json.dumps(payload, ensure_ascii=True, indent=2))
     return 0 if payload["state"] == "ready" else 2
 
 
@@ -257,7 +257,7 @@ def cmd_install(args: argparse.Namespace) -> int:
     payload = doctor_payload()
     payload["installed_ffmpeg"] = ffmpeg
     payload["installed_web_tools"] = installed_web_tools()
-    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    print(json.dumps(payload, ensure_ascii=True, indent=2))
     return 0 if payload["state"] == "ready" else 2
 
 

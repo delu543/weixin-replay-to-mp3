@@ -19,9 +19,9 @@ second GitHub request:
 ```powershell
 $installer = Join-Path $env:TEMP "weixin-replay-to-mp3-install.ps1"
 $urls = @(
-  "https://cdn.jsdelivr.net/gh/delu543/weixin-replay-to-mp3@v0.4.0/install-windows.ps1",
-  "https://fastly.jsdelivr.net/gh/delu543/weixin-replay-to-mp3@v0.4.0/install-windows.ps1",
-  "https://gcore.jsdelivr.net/gh/delu543/weixin-replay-to-mp3@v0.4.0/install-windows.ps1"
+  "https://cdn.jsdelivr.net/gh/delu543/weixin-replay-to-mp3@v0.4.1/install-windows.ps1",
+  "https://fastly.jsdelivr.net/gh/delu543/weixin-replay-to-mp3@v0.4.1/install-windows.ps1",
+  "https://gcore.jsdelivr.net/gh/delu543/weixin-replay-to-mp3@v0.4.1/install-windows.ps1"
 )
 $downloaded = $false
 foreach ($url in $urls) {

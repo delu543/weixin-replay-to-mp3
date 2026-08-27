@@ -40,7 +40,7 @@ https://github.com/delu543/weixin-replay-to-mp3
 
 如果 Windows 缺少 Python、FFmpeg 或可用的 Git HTTPS helper，请直接运行仓库提供的
 Windows 安装入口自动补齐。若 GitHub 仓库、Git clone 或 raw GitHub 无法访问，改从
-https://cdn.jsdelivr.net/gh/delu543/weixin-replay-to-mp3@v0.4.0/install-windows.ps1
+https://cdn.jsdelivr.net/gh/delu543/weixin-replay-to-mp3@v0.4.1/install-windows.ps1
 取得这个单文件安装器；不要仅报告缺少依赖，也不要把 Windows 误判为
 unsupported_platform，更不要继续索要整个仓库 ZIP。
 
@@ -167,9 +167,9 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install-windows.ps1
 ```powershell
 $installer = Join-Path $env:TEMP "weixin-replay-to-mp3-install.ps1"
 $urls = @(
-  "https://cdn.jsdelivr.net/gh/delu543/weixin-replay-to-mp3@v0.4.0/install-windows.ps1",
-  "https://fastly.jsdelivr.net/gh/delu543/weixin-replay-to-mp3@v0.4.0/install-windows.ps1",
-  "https://gcore.jsdelivr.net/gh/delu543/weixin-replay-to-mp3@v0.4.0/install-windows.ps1"
+  "https://cdn.jsdelivr.net/gh/delu543/weixin-replay-to-mp3@v0.4.1/install-windows.ps1",
+  "https://fastly.jsdelivr.net/gh/delu543/weixin-replay-to-mp3@v0.4.1/install-windows.ps1",
+  "https://gcore.jsdelivr.net/gh/delu543/weixin-replay-to-mp3@v0.4.1/install-windows.ps1"
 )
 $downloaded = $false
 foreach ($url in $urls) {

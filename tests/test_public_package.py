@@ -239,7 +239,7 @@ class PublicPackageTests(unittest.TestCase):
         )
         for text in (agents, readme, troubleshooting):
             self.assertIn("install-windows.ps1", text)
-            self.assertIn("cdn.jsdelivr.net/gh/delu543/weixin-replay-to-mp3@v0.4.0", text)
+            self.assertIn("cdn.jsdelivr.net/gh/delu543/weixin-replay-to-mp3@v0.4.1", text)
         self.assertIn("不需要预先安装 Python、FFmpeg 或 Git", readme)
         self.assertIn("not for a native Windows agent", troubleshooting)
         self.assertIn("not evidence that Windows is unsupported", troubleshooting)

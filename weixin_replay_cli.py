@@ -42,6 +42,22 @@ SHORT_ID_RE = re.compile(r"^[A-Za-z0-9_-]{5,80}$")
 MIN_PYTHON = (3, 10)
 
 
+def _configure_console_stream(stream: Any) -> None:
+    """Keep JSON/log output encodable in legacy Windows PowerShell code pages."""
+
+    reconfigure = getattr(stream, "reconfigure", None)
+    if not callable(reconfigure):
+        return
+    try:
+        reconfigure(errors="backslashreplace")
+    except (OSError, ValueError):
+        pass
+
+
+_configure_console_stream(sys.stdout)
+_configure_console_stream(sys.stderr)
+
+
 @dataclass(frozen=True)
 class LinkTarget:
     url: str

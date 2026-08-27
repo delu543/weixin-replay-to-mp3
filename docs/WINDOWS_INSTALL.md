@@ -1,4 +1,4 @@
-# Windows 安装与救援（v0.4.0）
+# Windows 安装与救援（v0.4.1）
 
 这个版本把“取得安装器”和“取得源码”合并成一个步骤。`install-windows.ps1`
 内置固定版本的最小源码包，并在解压前校验源码包的长度、SHA-256、路径、版本和必需
@@ -11,12 +11,12 @@
 整个安装器文件的固定 SHA-256：
 
 ```powershell
-$installer = Join-Path $env:TEMP "weixin-replay-to-mp3-v0.4.0.ps1"
-$expected = "1f511e40fe722afcca5104bf83a5d06ed6829310df139c73a5ea7a9ba1ccaab4"
+$installer = Join-Path $env:TEMP "weixin-replay-to-mp3-v0.4.1.ps1"
+$expected = "b48ef5caa9efbd675cc63d5724d966223abf3f6bb958efab642826f6d08c943c"
 $urls = @(
-  "https://cdn.jsdelivr.net/gh/delu543/weixin-replay-to-mp3@v0.4.0/install-windows.ps1",
-  "https://fastly.jsdelivr.net/gh/delu543/weixin-replay-to-mp3@v0.4.0/install-windows.ps1",
-  "https://gcore.jsdelivr.net/gh/delu543/weixin-replay-to-mp3@v0.4.0/install-windows.ps1"
+  "https://cdn.jsdelivr.net/gh/delu543/weixin-replay-to-mp3@v0.4.1/install-windows.ps1",
+  "https://fastly.jsdelivr.net/gh/delu543/weixin-replay-to-mp3@v0.4.1/install-windows.ps1",
+  "https://gcore.jsdelivr.net/gh/delu543/weixin-replay-to-mp3@v0.4.1/install-windows.ps1"
 )
 $downloaded = $false
 foreach ($url in $urls) {
@@ -41,12 +41,12 @@ yt-dlp、EJS 和 Deno 安装到私有 venv。Git 和系统 FFmpeg 都不是必�
 
 ## 所有下载入口都被拦截
 
-在另一台可联网设备下载同一个 `v0.4.0/install-windows.ps1`，核对上面的 SHA-256 后，
+在另一台可联网设备下载同一个 `v0.4.1/install-windows.ps1`，核对上面的 SHA-256 后，
 通过 U 盘、局域网或用户选择的文件传输方式复制到 Windows 电脑。然后直接运行：
 
 ```powershell
 $actual = (Get-FileHash -Algorithm SHA256 -LiteralPath .\install-windows.ps1).Hash.ToLowerInvariant()
-if ($actual -ne "1f511e40fe722afcca5104bf83a5d06ed6829310df139c73a5ea7a9ba1ccaab4") {
+if ($actual -ne "b48ef5caa9efbd675cc63d5724d966223abf3f6bb958efab642826f6d08c943c") {
   throw "installer SHA-256 mismatch"
 }
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install-windows.ps1
@@ -65,6 +65,6 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install-windows.ps1 -C
 ```
 
 正确结果应包含 `source_strategy: embedded_verified_bundle`、
-`embedded_source_ready: true`、`github_source_required: false` 和版本 `0.4.0`。本工具必须
+`embedded_source_ready: true`、`github_source_required: false` 和版本 `0.4.1`。本工具必须
 在 Codex 的 Windows native 环境中运行；WSL/Linux 的 `unsupported_platform` 不能当成
 Windows 结果。

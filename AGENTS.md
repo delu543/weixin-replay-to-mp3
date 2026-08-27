@@ -41,16 +41,16 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install-windows.ps1
 
 When Git is missing, `git-remote-https` is broken, raw GitHub is unavailable, or there
 is no trustworthy local checkout, do not diagnose the product as unsupported. Download
-the fixed `v0.4.0` self-contained installer through the jsDelivr multi-CDN endpoint and
+the fixed `v0.4.1` self-contained installer through the jsDelivr multi-CDN endpoint and
 run it. The installer validates and expands its embedded source; it never performs a
 second GitHub source download:
 
 ```powershell
 $installer = Join-Path $env:TEMP "weixin-replay-to-mp3-install.ps1"
 $urls = @(
-  "https://cdn.jsdelivr.net/gh/delu543/weixin-replay-to-mp3@v0.4.0/install-windows.ps1",
-  "https://fastly.jsdelivr.net/gh/delu543/weixin-replay-to-mp3@v0.4.0/install-windows.ps1",
-  "https://gcore.jsdelivr.net/gh/delu543/weixin-replay-to-mp3@v0.4.0/install-windows.ps1"
+  "https://cdn.jsdelivr.net/gh/delu543/weixin-replay-to-mp3@v0.4.1/install-windows.ps1",
+  "https://fastly.jsdelivr.net/gh/delu543/weixin-replay-to-mp3@v0.4.1/install-windows.ps1",
+  "https://gcore.jsdelivr.net/gh/delu543/weixin-replay-to-mp3@v0.4.1/install-windows.ps1"
 )
 $downloaded = $false
 foreach ($url in $urls) {

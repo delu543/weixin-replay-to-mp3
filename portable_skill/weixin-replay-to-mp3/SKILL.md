@@ -26,7 +26,7 @@ FFmpeg, yt-dlp, local EJS assets, and Deno for both macOS and Windows.
 If Windows lacks Python, the installer uses `winget` to install user-local Python 3.12
 and continues. If Git, its HTTPS remote helper, GitHub, or raw GitHub is unavailable,
 download the fixed self-contained installer from
-`https://cdn.jsdelivr.net/gh/delu543/weixin-replay-to-mp3@v0.4.0/install-windows.ps1`.
+`https://cdn.jsdelivr.net/gh/delu543/weixin-replay-to-mp3@v0.4.1/install-windows.ps1`.
 It SHA-256-verifies and expands its own embedded source, so it must not request a
 repository ZIP afterward. If that CDN is unavailable, try the same path on
 `fastly.jsdelivr.net` and `gcore.jsdelivr.net`; if all are blocked, ask for transfer of

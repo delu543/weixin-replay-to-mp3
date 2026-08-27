@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import importlib.util
+import io
 import json
 import os
 import sys
@@ -30,6 +31,15 @@ def load_script(name: str, relative_path: str):
 
 
 class WindowsSupportTests(unittest.TestCase):
+    def test_console_json_survives_legacy_ascii_output(self) -> None:
+        buffer = io.BytesIO()
+        stream = io.TextIOWrapper(buffer, encoding="ascii", errors="strict")
+        cli._configure_console_stream(stream)
+        print(json.dumps({"chat": "文件传输助手"}, ensure_ascii=False), file=stream)
+        stream.flush()
+        payload = json.loads(buffer.getvalue().decode("ascii"))
+        self.assertEqual(payload["chat"], "文件传输助手")
+
     def test_windows_application_root_uses_local_app_data(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             home = Path(tmp) / "home"
