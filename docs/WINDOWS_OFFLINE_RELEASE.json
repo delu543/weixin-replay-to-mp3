@@ -1,9 +1,9 @@
 {
   "architecture": "x64",
   "asset_name": "weixin-replay-to-mp3-windows-portable-v0.5.0.zip",
-  "bytes": 88193365,
+  "bytes": 88193367,
   "release_page": "https://github.com/delu543/weixin-replay-to-mp3/releases/tag/v0.5.0",
-  "sha256": "202645a92e6aefd1060c6a703e36a8f8ea98c6d1dba276f07279b522f0839e69",
+  "sha256": "da9c167f91b9b501a6a9f89b78ed50eeaf5ce1b6f0f7125c4e1846afb55bb0b6",
   "url": "https://github.com/delu543/weixin-replay-to-mp3/releases/download/v0.5.0/weixin-replay-to-mp3-windows-portable-v0.5.0.zip",
   "version": "0.5.0"
 }

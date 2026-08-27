@@ -69,6 +69,7 @@ class WindowsOfflineBundleTests(unittest.TestCase):
         self.assertIn('install_mode = "offline_portable"', template)
         self.assertIn("Read-VerifiedManifest", template)
         self.assertIn("Invoke-Preflight", template)
+        self.assertIn("'(^|[\\\\/])\\.\\.([\\\\/]|$)'", template)
         for forbidden in (
             "Invoke-WebRequest",
             "Start-BitsTransfer",

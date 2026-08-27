@@ -25,7 +25,7 @@ function Resolve-PackageFile {
     param([string]$Root, [string]$RelativePath)
     if ([string]::IsNullOrWhiteSpace($RelativePath) -or
         $RelativePath.StartsWith("/") -or $RelativePath.StartsWith("\") -or
-        $RelativePath -match '(^|[/\])\.\.([/\]|$)' -or $RelativePath -match '^[A-Za-z]:') {
+        $RelativePath -match '(^|[\\/])\.\.([\\/]|$)' -or $RelativePath -match '^[A-Za-z]:') {
         throw "The package manifest contains an unsafe path: $RelativePath"
     }
     $rootPath = [System.IO.Path]::GetFullPath($Root).TrimEnd('\') + '\'
