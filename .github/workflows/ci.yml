@@ -163,6 +163,11 @@ jobs:
           $env:USERPROFILE = Join-Path $isolated "profile"
           $env:HOME = $env:USERPROFILE
           New-Item -ItemType Directory -Path $env:LOCALAPPDATA, $env:USERPROFILE -Force | Out-Null
+          $windowsPowerShell = Join-Path $env:SystemRoot `
+            "System32\WindowsPowerShell\v1.0\powershell.exe"
+          if (-not (Test-Path -LiteralPath $windowsPowerShell -PathType Leaf)) {
+            throw "The Windows system PowerShell executable is missing"
+          }
           $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot"
           $env:HTTP_PROXY = "http://127.0.0.1:9"
           $env:HTTPS_PROXY = "http://127.0.0.1:9"
@@ -173,7 +178,7 @@ jobs:
             }
           }
 
-          $checked = powershell.exe -NoProfile -ExecutionPolicy Bypass `
+          $checked = & $windowsPowerShell -NoProfile -ExecutionPolicy Bypass `
             -File $installer -CheckOnly | ConvertFrom-Json
           if ($checked.status -ne "checked" -or -not $checked.python_embedded -or
               -not $checked.ffmpeg_embedded -or -not $checked.yt_dlp_embedded -or
@@ -181,7 +186,7 @@ jobs:
               $checked.winget_required -or $checked.online_pip_required) {
             throw "Portable asset check did not prove all dependencies embedded"
           }
-          $installOutput = powershell.exe -NoProfile -ExecutionPolicy Bypass `
+          $installOutput = & $windowsPowerShell -NoProfile -ExecutionPolicy Bypass `
             -File $installer 2>&1
           $installExit = $LASTEXITCODE
           $installOutput | ForEach-Object { Write-Host $_ }
