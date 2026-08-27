@@ -115,6 +115,7 @@ def scan() -> dict[str, Any]:
             if pattern.search(text):
                 errors.append(f"secret_pattern:{label}:{relative}")
     required = [
+        ".gitattributes",
         "AGENTS.md",
         "README.md",
         "LICENSE",
